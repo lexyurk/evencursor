@@ -1,0 +1,46 @@
+{
+  "name": "evencursor",
+  "version": "0.1.0",
+  "description": "Voice-first Even Realities HUD for managing Cursor Agent sessions.",
+  "type": "module",
+  "license": "MIT",
+  "author": "Alexey Yurkevich",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lexyurk/evencursor.git"
+  },
+  "bugs": {
+    "url": "https://github.com/lexyurk/evencursor/issues"
+  },
+  "homepage": "https://github.com/lexyurk/evencursor#readme",
+  "keywords": [
+    "cursor",
+    "cursor-agent",
+    "even-realities",
+    "smart-glasses",
+    "agentic-coding",
+    "voice-ui"
+  ],
+  "scripts": {
+    "dev:hub": "vite --host 0.0.0.0",
+    "dev:bridge": "tsx watch src/bridge/server.ts",
+    "build": "vite build && tsc -p tsconfig.bridge.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.bridge.json --noEmit",
+    "test": "vitest run",
+    "start:bridge": "node dist/bridge/server.js"
+  },
+  "dependencies": {
+    "@evenrealities/even_hub_sdk": "^0.0.10",
+    "dotenv": "^17.4.2",
+    "ws": "^8.20.1",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.1",
+    "@types/ws": "^8.18.1",
+    "tsx": "^4.22.3",
+    "typescript": "^6.0.3",
+    "vite": "^7.2.6",
+    "vitest": "^3.2.4"
+  }
+}
