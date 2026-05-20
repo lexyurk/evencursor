@@ -1,0 +1,5 @@
+2026-05-20T19:59Z root-planner blocker=missing-secret cursor_api_key=absent
+- bun cli.ts run /workspace/.orchestrate/arch-check/ exited code 2 with stderr `CURSOR_API_KEY required; see cursor-sdk/references/auth.md`.
+- CLOUD_AGENT_INJECTED_SECRET_NAMES=ANTHROPIC_API_KEY,LINEAR_API_KEY,OPENAI_API_KEY,GOOGLE_API_KEY (no CURSOR_API_KEY).
+- Without that key the substrate cannot call Agent.create for any worker or verifier, so no spawn ever begins. There is no state.json to recover from.
+- Action: add `CURSOR_API_KEY` in Cursor Dashboard > Cloud Agents > Secrets (team or repo scope), then re-dispatch this goal. Plan, tasks, and acceptance criteria as authored survive a re-run.

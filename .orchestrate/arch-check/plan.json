@@ -1,0 +1,51 @@
+{
+  "$schema": "/home/ubuntu/.cursor/plugins/cache/cursor-public/9333/d1cdb88a9eb33cf392395c87e3fd76419fc1010e/skills/orchestrate/schemas/plan.schema.json",
+  "goal": "arch check",
+  "summary": "architecture review of evencursor (bridge + hub + shared)",
+  "rootSlug": "arch-check",
+  "baseBranch": "main",
+  "repoUrl": "https://github.com/lexyurk/evencursor",
+  "selfAgentId": "bc-5af4c120-7ed7-4beb-aab0-9a7af260ef1b",
+  "syncStateToGit": true,
+  "tasks": [
+    {
+      "name": "arch-review",
+      "type": "worker",
+      "scopedGoal": "Produce an architectural review of the evencursor repo as a new file `docs/arch-review.md` on this task's branch and open a draft PR. The codebase is small: a Node.js HTTP+WebSocket bridge in `src/bridge/` that spawns the `cursor-agent` CLI per session, a Vite browser hub in `src/hub/` that renders the inbox and talks to the bridge over HTTP+WebSocket, and shared zod schemas + a HUD summarizer in `src/shared/`. Focus the review on real risks, not lint nits. Cover at least these axes, naming concrete files and line ranges where relevant:\n\n1. Layering and module boundaries — does `bridge`, `hub`, and `shared` honor a clean dependency direction? Where do leaks happen (e.g. browser code reaching into Node-only types, or vice versa)? Is the `summarizeForHud` helper rightly in `shared`?\n2. Session lifecycle in `src/bridge/server.ts` and `src/bridge/cursor-runner.ts` — race conditions on `sessions` map mutation, concurrent `runner.start` calls reusing the same session object, lost `outputTail` updates under interleaving, missing back-pressure on the WebSocket broadcast, and what happens when the spawned `cursor-agent` exits during a follow-up answer.\n3. Question extraction (`extractQuestions`) and resume flow — false positives, idempotency on retries, what happens when a question text repeats, and how unanswered questions interact with the queued/running/waiting state machine declared in `protocol.ts`.\n4. Validation and trust boundary — every external input goes through zod schemas; verify that and call out anywhere a raw `unknown` is dereferenced. Check the WebSocket path; today the server only writes outbound events, but the API surface (`/api/sessions` POST, `/api/sessions/:id/answer`) should be evaluated for injection (workspace path, `cursorAgentBin` env, prompt content piped to `spawn`), DoS (100k body cap), and missing auth.\n5. Frontend hub (`src/hub/main.ts`, `even.ts`, `speech.ts`) — XSS via the `escapeHtml`-based string-concat HTML rendering (in particular, does every interpolation pass through `escapeHtml`?), unhandled WebSocket reconnect storms, missing error UX when `fetch` fails, and Even Realities HUD failure modes when the bridge isn't ready.\n6. Type safety and shared protocol — gaps between the wire shape and the TS types, the `BridgeEvent` discriminator handling, and whether the `CursorSession` mutation pattern (mutate in place, then broadcast) is sustainable.\n7. Observability and operational gaps — logging is essentially `console.log` once; what minimum should ship for the README's stated deploy path; what's missing for the README's roadmap (auth, remote relay).\n\nFor each axis, write one or two paragraphs of analysis and end the section with a `### Recommendations` bullet list of concrete, file-scoped follow-up tasks (e.g. `Replace the inline HTML concatenation in `src/hub/main.ts` with a small `el(tag, attrs, children)` builder so escaping is structural, not ad-hoc`). Keep the whole report under ~1200 lines; depth > breadth. Do not change source code; only add `docs/arch-review.md`. Commit and push the file, then open a draft PR titled `docs: architecture review (arch-check)` against `main` whose body includes the report's executive summary and links to its section anchors.",
+      "pathsAllowed": [
+        "docs/arch-review.md"
+      ],
+      "pathsForbidden": [
+        "src/**",
+        "package.json",
+        "package-lock.json",
+        "tsconfig*.json",
+        "vite.config.ts"
+      ],
+      "acceptance": [
+        "`docs/arch-review.md` exists on the task branch and is committed.",
+        "The report contains a top-level `# Architecture Review — evencursor` heading and an `## Executive Summary` section.",
+        "Each of the 7 named axes (layering, session lifecycle, question extraction, validation/trust, frontend hub, type safety, observability) has its own `##` section with at least one paragraph of analysis and a `### Recommendations` list.",
+        "Recommendations are file-scoped: each bullet names a concrete file under `src/` (or `package.json`/`tsconfig.json`/`vite.config.ts`) and the change to make.",
+        "A draft PR titled `docs: architecture review (arch-check)` is open against `main` with the executive summary in its body.",
+        "No source files under `src/` are modified."
+      ],
+      "verify": "## Setup\n- Clone the task branch and `cd` into the repo root.\n\n## Automated\n- `test -f docs/arch-review.md` succeeds.\n- `grep -c '^## ' docs/arch-review.md` returns at least 8 (executive summary + 7 axes).\n- `grep -c '### Recommendations' docs/arch-review.md` returns at least 7.\n- `git diff --name-only main...HEAD -- src/` returns empty.\n- The PR for this branch is in draft state with title `docs: architecture review (arch-check)`.\n\n## Manual\n- Read `docs/arch-review.md` end-to-end and confirm: every axis section names at least one specific file under `src/`; the recommendations are concrete (not platitudes); and the executive summary lists 3-5 top risks the engineer should act on first.\n- Spot-check one claim per section against the actual code (e.g. open `src/hub/main.ts` and check that the XSS finding matches reality).\n\n## Gotchas\n- The task may not modify code. If `git diff` shows any `src/` change, treat it as a verifier-failed run regardless of report quality.\n- Open the PR with the ManagePullRequest tool as a draft; do not mark ready-for-review.",
+      "openPR": true,
+      "model": "gpt-5.5-high-fast",
+      "maxAttempts": 2
+    },
+    {
+      "name": "verify-arch-review",
+      "type": "verifier",
+      "verifies": "arch-review",
+      "scopedGoal": "Verify the `arch-review` worker's deliverable on its branch. Run the automated checks in the `verify` plan below, then manually validate the report's claims by reading both `docs/arch-review.md` and the source it references. Score on three dimensions: completeness (all 7 axes present with the required structure), groundedness (does each section reference real files and behavior that exists in the code?), and actionability (are the recommendations specific enough that a worker could pick one up as a task?). Surface every finding in the verifier handoff under `## Findings`, with one bullet per acceptance criterion of the target task. Do not modify the report; if you spot a real bug in the report, note it as a finding so the planner can decide.",
+      "acceptance": [
+        "Verifier handoff includes `## Verification` with one of the allowed values.",
+        "`## Execution` lists the actual commands run and their outcomes.",
+        "`## Findings` covers each of the 6 arch-review acceptance criteria with `met | not met | n/a` plus evidence."
+      ],
+      "model": "claude-opus-4-7"
+    }
+  ]
+}
