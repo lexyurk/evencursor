@@ -1,0 +1,51 @@
+{
+  "rootSlug": "smoke-test-cli",
+  "tasks": [
+    {
+      "name": "marker",
+      "type": "worker",
+      "branch": "orch/smoke-test-cli/marker",
+      "startingRef": "cursor/smoke-test-cli-4737",
+      "dependsOn": [],
+      "agentId": null,
+      "runId": null,
+      "parentAgentId": null,
+      "status": "running",
+      "resultStatus": null,
+      "handoffPath": null,
+      "startedAt": "2026-05-20T20:04:13.387Z",
+      "finishedAt": null,
+      "lastUpdate": "2026-05-20T20:04:13.387Z",
+      "note": null,
+      "slackTs": null,
+      "prNumber": null,
+      "failureMode": null,
+      "verification": null,
+      "attempts": 1
+    },
+    {
+      "name": "verify-marker",
+      "type": "verifier",
+      "branch": "orch/smoke-test-cli/verify-marker",
+      "startingRef": "orch/smoke-test-cli/marker",
+      "dependsOn": [
+        "marker"
+      ],
+      "agentId": null,
+      "runId": null,
+      "parentAgentId": null,
+      "status": "pending",
+      "resultStatus": null,
+      "handoffPath": null,
+      "startedAt": null,
+      "finishedAt": null,
+      "lastUpdate": null,
+      "note": null,
+      "slackTs": null,
+      "prNumber": null,
+      "failureMode": null,
+      "verification": null
+    }
+  ],
+  "attention": []
+}
