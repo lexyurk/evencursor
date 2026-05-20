@@ -47,5 +47,10 @@
       "verification": null
     }
   ],
-  "attention": []
+  "attention": [
+    {
+      "at": "2026-05-20T20:04:21.864Z",
+      "message": "marker: spawn failed after 3 transient sub-attempts: i: {\"code\":\"internal\",\"message\":\"Error\"}"
+    }
+  ]
 }
