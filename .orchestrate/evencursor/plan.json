@@ -1,0 +1,171 @@
+{
+  "goal": "Rework evencursor for Even glasses + Cursor agents\n\nSimplify the overloaded first version of evencursor (voice-first Even Realities HUD for Cursor agents).\n\n- Cursor: use https://cursor.com/docs/cloud-agent/api/endpoints for list/detail/status and all agent interaction.\n- Auth: Sign in with Cursor only; no extra API tokens.\n- Even: https://hub.evenrealities.com/docs/getting-started/overview as primary docs.\n- Voice: Deepgram streaming STT; recognize slash commands (e.g. /orchestrate).\n- UI: glasses-friendly layout with buttons and voice where needed.\n- Process: small granular commits; subagents where possible.\n- Models: root/subplanners claude-opus-4-7; all workers composer-2.5-fast in plan.json.",
+  "summary": "rework evencursor for Even glasses + Cursor cloud agents",
+  "dispatcher": { "firstName": "Alex" },
+  "rootSlug": "evencursor",
+  "baseBranch": "main",
+  "prBase": "main",
+  "repoUrl": "https://github.com/lexyurk/evencursor",
+  "selfAgentId": "bc-05eb7a1b-69c0-444c-85d1-a4ae763ef4d5",
+  "syncStateToGit": true,
+  "tasks": [
+    {
+      "name": "foundation-protocol-and-docs",
+      "type": "worker",
+      "model": "composer-2.5-fast",
+      "scopedGoal": "Replace the overloaded v1 protocol and docs with a focused contract for the Cursor cloud-agent + Even glasses + Deepgram rework. Keep the repo compiling end-to-end so downstream slices can branch off main cleanly.",
+      "brief": "## What you own\n\n- `src/shared/protocol.ts` — replace the CLI-shaped types with cloud-agent-shaped types.\n- `src/shared/protocol.test.ts` — keep tests in sync; cover `summarizeForHud` with the new statuses.\n- `README.md` and `docs/product.md` — describe the new architecture.\n- Minimal compile-keeping edits to `src/bridge/server.ts`, `src/bridge/cursor-runner.ts`, and `src/hub/main.ts` so `npm run typecheck` still passes. Real behavior swaps happen in later slices. Stub out / no-op anything that can't be implemented in this slice.\n\n## New protocol shape\n\n```ts\nexport type CloudAgentRunStatus =\n  | \"CREATING\"\n  | \"RUNNING\"\n  | \"FINISHED\"\n  | \"CANCELLED\"\n  | \"ERROR\"\n  | \"EXPIRED\";\n\nexport type AgentInboxStatus = \"draft\" | \"queued\" | \"running\" | \"waiting\" | \"done\" | \"failed\";\n```\n\nMap `CloudAgentRunStatus` → `AgentInboxStatus` for the HUD: `CREATING|RUNNING` → `running`, `FINISHED` → `done`, `CANCELLED|ERROR|EXPIRED` → `failed`. A run with an outstanding human question is `waiting`; we keep that mapping logic in shared code.\n\nNew shared types (rename `CursorSession` → `AgentSession`; do not preserve the old type for back-compat):\n\n```ts\nexport type AgentSession = {\n  id: string;             // local UUID for the inbox row\n  cursorAgentId?: string; // bc-...\n  latestRunId?: string;   // run-...\n  title: string;\n  prompt: string;\n  repoUrl?: string;\n  startingRef?: string;\n  branchName?: string;\n  model?: { id: string; params?: { id: string; value: string }[] };\n  inboxStatus: AgentInboxStatus;\n  runStatus?: CloudAgentRunStatus;\n  createdAt: string;\n  updatedAt: string;\n  url?: string;           // cursor.com/agents?id=...\n  summary?: string;\n  outputTail: string[];\n  questions: AgentQuestion[];\n};\n```\n\nAlso add a `VoiceCommand` discriminated union for slash commands (start with `/orchestrate` + a fallthrough `unknown`), and a `BridgeEvent` union covering `snapshot`, `session.updated`, `voice.transcript`, `voice.command`, `error`.\n\n## Sign-in surface (types only)\n\nDefine a `CursorIdentity = { userEmail: string; apiKeyName: string }` and a `BridgeAuthState = { signedIn: boolean; identity?: CursorIdentity }`. Implementation lands in a later slice.\n\n## Docs\n\nReadme + `docs/product.md`: rewrite to describe the cloud-agent-only architecture, Sign in with Cursor (no extra tokens), Deepgram streaming STT replacing Web Speech, slash commands, glasses-friendly UI. Drop references to the local cursor-agent CLI, worktrees, and Plan/Ask modes (mention `mode` belongs to Cursor's API now). Keep MIT license + author intact.\n\n## Acceptance\n\n- `npm run typecheck` passes after your changes.\n- `npm test` (vitest) passes.\n- No `cursor-agent` CLI references survive in protocol/docs (bridge implementation file may still have stubs marked `TODO: replaced by cloud-agent client`).\n- New types are exported by `src/shared/protocol.ts` exactly as the brief specifies.\n\nCommit incrementally: one commit for protocol types, one for tests, one for README, one for product.md, one for bridge/hub stubs. Push the branch.",
+      "pathsAllowed": [
+        "src/shared/**",
+        "src/bridge/cursor-runner.ts",
+        "src/bridge/server.ts",
+        "src/hub/main.ts",
+        "README.md",
+        "docs/**"
+      ],
+      "acceptance": [
+        "src/shared/protocol.ts exports CloudAgentRunStatus, AgentInboxStatus, AgentSession, AgentQuestion, VoiceCommand, BridgeEvent, BridgeAuthState, CursorIdentity",
+        "summarizeForHud is updated to read AgentSession.inboxStatus and is covered by tests",
+        "README and docs/product.md describe the cloud-agent + Even + Deepgram architecture with Sign in with Cursor",
+        "npm run typecheck passes",
+        "npm test passes"
+      ],
+      "verify": "## Setup\n- `npm install` once.\n\n## Automated\n- `npm run typecheck`\n- `npm test`\n\n## Manual\n- Skim README and docs/product.md for stale CLI references.",
+      "openPR": true
+    },
+    {
+      "name": "cursor-cloud-client",
+      "type": "worker",
+      "model": "composer-2.5-fast",
+      "scopedGoal": "Replace the `cursor-agent` CLI driver with a typed REST client for the Cursor Cloud Agents API and wire it into the bridge.",
+      "brief": "## Reference\n\n- https://cursor.com/docs/cloud-agent/api/endpoints — v1 Agents API (Basic Auth with API key as username, empty password).\n- https://cursor.com/docs/api — auth + rate limits.\n\nAll Cursor calls use `https://api.cursor.com` with header `Authorization: Basic ${base64(apiKey + ':')}`.\n\n## What you own\n\nDelete `src/bridge/cursor-runner.ts`. Add a typed client module and a session manager that uses it.\n\n- `src/bridge/cursor-client.ts` — narrow REST helper:\n  - `me(apiKey)` → `GET /v1/me`. Returns `CursorIdentity` or throws on 401.\n  - `createAgent({ apiKey, prompt, repoUrl, startingRef, model, autoCreatePR })` → `POST /v1/agents`.\n  - `listAgents({ apiKey, limit, cursor })` → `GET /v1/agents`.\n  - `getAgent({ apiKey, id })` → `GET /v1/agents/{id}`.\n  - `createRun({ apiKey, agentId, prompt, mode })` → `POST /v1/agents/{id}/runs`.\n  - `getRun({ apiKey, agentId, runId })` → `GET /v1/agents/{id}/runs/{runId}`.\n  - `cancelRun({ apiKey, agentId, runId })` → `POST /v1/agents/{id}/runs/{runId}/cancel`.\n  - `streamRun({ apiKey, agentId, runId, signal, onEvent })` → SSE client that parses `status`, `assistant`, `thinking`, `tool_call`, `heartbeat`, `result`, `done`, `error`. Use `globalThis.fetch` + `ReadableStream` SSE parsing; respect `Last-Event-ID` on reconnect; treat `410 stream_expired` by falling back to `getRun`.\n- `src/bridge/session-manager.ts` — owns the local `AgentSession` map. Exposes:\n  - `createSession(prompt, opts)` — calls `createAgent`, persists session, kicks off background stream.\n  - `answerSession(sessionId, text)` — calls `createRun` with follow-up prompt.\n  - `cancelSession(sessionId)` — calls `cancelRun` if a run is active.\n  - `snapshot()` / `subscribe(listener)` for the WS layer.\n  - Heuristic question extraction from streamed `assistant` text (port the v1 logic; one concise line per question; deduplicate).\n  - Maps `CloudAgentRunStatus` → `AgentInboxStatus`.\n\n## Bridge integration\n\nUpdate `src/bridge/server.ts`:\n- Drop all references to `cursor-runner`, child process, worktree, `CURSOR_AGENT_BIN`, `EVENCURSOR_DEFAULT_WORKSPACE`.\n- Hold the API key in a `BridgeAuth` singleton (set by the sign-in slice; default `undefined`).\n- Route handlers:\n  - `POST /api/sessions` — requires signed-in auth; calls `SessionManager.createSession`.\n  - `POST /api/sessions/:id/answer` — requires auth; calls `SessionManager.answerSession`.\n  - `POST /api/sessions/:id/cancel` — requires auth; cancels.\n  - `GET /api/sessions` — list snapshot.\n  - `GET /api/repositories` — proxy `/v1/repositories` (best-effort, log rate-limit failures and return cached empty list).\n  - `GET /api/models` — proxy `/v1/models`.\n  - `GET /api/auth` — returns `BridgeAuthState`.\n  - Unauthed requests get `401 { error: \"signin_required\" }`.\n- Keep the `/ws` snapshot/session.updated stream.\n- Add a tiny in-memory secret holder set by `/api/auth/cursor` (the sign-in slice will write that endpoint). Export a `setApiKey(key)` symbol the auth slice will call.\n\n## Acceptance\n\n- `src/bridge/cursor-runner.ts` is deleted.\n- All requests carry the Authorization header derived from the in-memory key.\n- `npm run typecheck` passes.\n- A new vitest file covers the status → inbox mapping and the SSE parser with mocked events.\n\n## Commit hygiene\n\nOne commit per file, plus one for tests. Push the branch.",
+      "pathsAllowed": [
+        "src/bridge/**",
+        "src/shared/**"
+      ],
+      "pathsForbidden": [
+        "src/hub/**",
+        "README.md",
+        "docs/**"
+      ],
+      "acceptance": [
+        "src/bridge/cursor-runner.ts removed; new cursor-client.ts + session-manager.ts present",
+        "All Cursor API calls go to https://api.cursor.com/v1/* with Basic auth",
+        "Bridge enforces signed-in state before mutating session endpoints",
+        "SSE stream parser handles status/assistant/thinking/tool_call/result/done/error and falls back on 410 stream_expired",
+        "npm run typecheck passes",
+        "npm test passes"
+      ],
+      "verify": "## Setup\n- `npm install` once.\n\n## Automated\n- `npm run typecheck`\n- `npm test`\n\n## Manual\n- Grep for `cursor-agent`, `child_process`, `spawn` in src/bridge to confirm CLI driver is gone.",
+      "dependsOn": ["foundation-protocol-and-docs"],
+      "openPR": true
+    },
+    {
+      "name": "auth-signin-cursor",
+      "type": "worker",
+      "model": "composer-2.5-fast",
+      "scopedGoal": "Implement Sign in with Cursor end-to-end: bridge endpoint that validates the user-supplied API key against /v1/me, plus a hub sign-in screen. No other tokens are surfaced to the user.",
+      "brief": "## Reference\n- Cursor API auth: https://cursor.com/docs/api (Basic auth, user API key from https://cursor.com/dashboard/integrations).\n- `/v1/me` returns `{ apiKeyName, createdAt, userEmail }`.\n\n## Bridge\n\nIn `src/bridge/server.ts` (and a new `src/bridge/auth.ts` if it helps):\n- `POST /api/auth/cursor` — body `{ apiKey: string }`. Call `cursorClient.me(apiKey)`. On success, store the key in process memory only (never log, never persist), set `BridgeAuthState.signedIn = true`, set `identity`, return `200 { identity }`. On 401, return `401 { error: \"invalid_key\" }`.\n- `DELETE /api/auth/cursor` — clears in-memory key, emits a broadcast event `auth.changed`.\n- `GET /api/auth` — returns `{ signedIn, identity }`.\n- Broadcast `auth.changed` over `/ws` whenever the state flips.\n- Treat the key as a session-only secret: do not write it to disk, do not echo it in error messages, do not include it in any handoff.\n\n## Hub\n\nAdd a sign-in gate to `src/hub/main.ts` (or split into `src/hub/auth.ts`):\n- Before showing the inbox, fetch `/api/auth`. If `signedIn=false`, render the sign-in panel: large input field for the API key, a `Sign in with Cursor` button, a short explainer with a link to https://cursor.com/dashboard/integrations.\n- On submit, POST to `/api/auth/cursor`. On success, swap to the inbox view and show the user email pill.\n- Add a sign-out button to the inbox header.\n- Persist a `signedIn` hint only (no key) in `sessionStorage` so the gate reads correctly during reconnects.\n- The sign-in panel must be readable on a phone held at arm's length: 18px+ inputs, 48px+ buttons.\n\n## Acceptance\n\n- The user never enters or sees Deepgram, Even, or any other token.\n- Refreshing the page while signed in shows the inbox immediately; after server restart, the user is asked to sign in again (memory-only key is intentional).\n- `npm run typecheck` and `npm test` pass.\n- A new test covers the auth route happy + invalid-key paths with a mocked fetch.\n\nCommit hygiene: one commit per file plus one for tests; push the branch.",
+      "pathsAllowed": [
+        "src/bridge/server.ts",
+        "src/bridge/auth.ts",
+        "src/hub/**",
+        "src/shared/**"
+      ],
+      "acceptance": [
+        "POST /api/auth/cursor validates against /v1/me and stores key in memory only",
+        "Hub renders sign-in screen when not authenticated and inbox after sign-in",
+        "Sign-out clears the in-memory key and forces a fresh sign-in",
+        "No other API tokens are exposed in the UI",
+        "npm run typecheck passes",
+        "npm test passes"
+      ],
+      "verify": "## Setup\n- `npm install` once.\n\n## Automated\n- `npm run typecheck`\n- `npm test`\n\n## Manual\n- Start bridge + hub, attempt to load inbox without signing in (expect sign-in screen), then POST a bogus key (expect 401), then a valid key (expect inbox).",
+      "dependsOn": ["cursor-cloud-client"],
+      "openPR": true
+    },
+    {
+      "name": "voice-substrate",
+      "type": "subplanner",
+      "model": "claude-opus-4-7",
+      "scopedGoal": "Build the Deepgram streaming voice substrate end-to-end: bridge proxy that holds the Deepgram key, hub mic capture, slash-command recognition (/orchestrate and friends), and Even glasses audio routing.",
+      "brief": "## Slice scope\n\nThis slice owns voice from mic to command. Decompose into a small set of worker tasks (recommend ~3) and aggregate handoffs back to the root.\n\n## References\n- Deepgram streaming docs: https://developers.deepgram.com/docs/getting-started-with-live-streaming-audio (and `wss://api.deepgram.com/v1/listen?model=nova-2-general&encoding=linear16&sample_rate=16000`).\n- Even SDK audio: `bridge.audioControl(true)` opens the mic; PCM bytes arrive as `event.audioEvent.audioPcm` (Uint8Array). See https://hub.evenrealities.com/docs/getting-started/overview and the npm README (`@evenrealities/even_hub_sdk` 0.0.10).\n\n## What must exist when you hand back\n\n- `src/bridge/voice.ts` — WS endpoint `/ws/voice` that:\n  - Auths against the signed-in bridge state.\n  - Accepts a binary stream of 16kHz mono Int16 PCM frames.\n  - Maintains an outbound WS to Deepgram using server-side `DEEPGRAM_API_KEY`; relays Deepgram JSON transcripts back to the client as parsed `{ type: \"transcript\", isFinal, text }` and `{ type: \"command\", name, args }` messages.\n  - Slash command grammar: recognize `/orchestrate <args>`, `/answer <args>`, `/cancel`, `/sign-out`; everything else is a free transcript.\n- `src/shared/commands.ts` — pure function `parseCommand(text)` returning `VoiceCommand`.\n- `src/hub/voice.ts` — replaces `src/hub/speech.ts`:\n  - Browser path: `getUserMedia` → `AudioWorklet` resampling to 16kHz Int16 → WS to `/ws/voice`.\n  - Glasses path: when running inside Even Hub WebView (detected via `waitForEvenAppBridge`), call `bridge.audioControl(true)` and forward `audioEvent.audioPcm` frames to the same WS.\n  - Surface a single `onTranscript(text, isFinal)` + `onCommand(cmd)` API consumed by the inbox view.\n- `src/hub/speech.ts` — deleted.\n\n## Constraints\n\n- The Deepgram key never reaches the browser. Read it from `process.env.DEEPGRAM_API_KEY` on the bridge; fail the `/ws/voice` upgrade with a clear close code if it's missing.\n- Slash command parsing must be unit-tested; live in `src/shared/commands.ts` so both bridge and hub can use it.\n- Bridge typecheck + tests must pass at the end of every worker handoff in your subtree.\n\n## Suggested decomposition (you decide)\n\n1. `voice-bridge-proxy` — bridge `/ws/voice` + Deepgram relay + tests.\n2. `voice-commands` — shared `parseCommand` + tests.\n3. `voice-hub-capture` — browser + Even glasses mic capture, replaces speech.ts.\n\n## Final handoff\n\nReport the deliverable branch (likely the integration branch from the last task in your subtree), measurements (`LOC src/hub/voice.ts`, `LOC src/bridge/voice.ts`), and any follow-ups for the integration slice.",
+      "pathsAllowed": [
+        "src/bridge/voice.ts",
+        "src/bridge/server.ts",
+        "src/hub/voice.ts",
+        "src/hub/speech.ts",
+        "src/hub/even.ts",
+        "src/shared/**"
+      ],
+      "acceptance": [
+        "Bridge owns the Deepgram key; the hub never sees it",
+        "Slash commands /orchestrate, /answer, /cancel, /sign-out are recognized and unit-tested",
+        "Hub captures browser mic via AudioWorklet at 16kHz Int16 PCM",
+        "Glasses path uses bridge.audioControl + audioEvent.audioPcm forwarding",
+        "src/hub/speech.ts is removed",
+        "npm run typecheck and npm test pass on the deliverable branch"
+      ],
+      "verify": "## Setup\n- `npm install` once.\n\n## Automated\n- `npm run typecheck`\n- `npm test`\n\n## Manual\n- Without DEEPGRAM_API_KEY, /ws/voice upgrades fail loudly.\n- With the key, a dummy PCM stream produces transcript and command messages downstream.",
+      "dependsOn": ["foundation-protocol-and-docs"],
+      "openPR": false
+    },
+    {
+      "name": "ui-glasses-layout",
+      "type": "worker",
+      "model": "composer-2.5-fast",
+      "scopedGoal": "Redesign the hub UI for glasses-friendly use and rebuild the Even HUD output so both surfaces stay glanceable. Use buttons where touch makes sense and voice where it's faster.",
+      "brief": "## What you own\n\n- `src/hub/main.ts` — top-level layout.\n- `src/hub/styles.css` — typography, contrast, spacing for arms-length reading.\n- `src/hub/even.ts` — HUD rendering via the Even SDK (`waitForEvenAppBridge`, `createStartUpPageContainer` first time, `rebuildPageContainer` thereafter, `textContainerUpgrade` for live text). Constraints: 576×288 px canvas per eye, 4-bit greyscale, text-only is fine.\n\n## Layout requirements\n\nPhone / hub view:\n- Single column, max 3 panels visible without scrolling: HUD summary, Needs You, Sessions.\n- Buttons: minimum 48×48 tap target, primary buttons full-width.\n- A persistent voice button anchored bottom-right (icon + label) that:\n  - Press = push-to-talk.\n  - Long-press = continuous listening until release.\n  - Calls the voice substrate's `onCommand` / `onTranscript` callbacks.\n- A slash-command bar above the keyboard with quick-tap chips: `/orchestrate`, `/answer`, `/cancel`.\n- Sessions list shows `inboxStatus` as a colored pill (`running` blue, `waiting` amber, `done` green, `failed` red) plus model badge.\n\nEven HUD:\n- Use `summarizeForHud` (already returns 3 short strings) and render them in a 3-line text stack.\n- First HUD bring-up: `createStartUpPageContainer({ containerTotalNum: 3, textObject: [titleLine, bodyLine, metaLine] })`. Subsequent updates: `textContainerUpgrade` per container, falling back to `rebuildPageContainer` when the line set changes shape.\n- Cap each line at 48 chars (the SDK accepts longer, but the display ergonomics demand this).\n- Detect `launchSource === \"glassesMenu\"` to skip the phone-only sign-in modal and instead show a minimal `Sign in on phone` HUD line until the bridge reports signed-in.\n\n## Acceptance\n\n- No reliance on Web Speech API in the hub bundle.\n- Color/contrast meets WCAG AA at 18px body text.\n- Even HUD calls `createStartUpPageContainer` exactly once per session and `rebuildPageContainer`/`textContainerUpgrade` thereafter.\n- `npm run typecheck` and `npm test` pass.\n- Snapshot test for `summarizeForHud` still passes (do not change the function's contract).\n\nCommit hygiene: split layout, styles, Even HUD, and voice wiring into separate commits.",
+      "pathsAllowed": [
+        "src/hub/**",
+        "src/shared/protocol.ts"
+      ],
+      "pathsForbidden": [
+        "src/bridge/**"
+      ],
+      "acceptance": [
+        "Hub renders three panels with 48px+ tap targets and a voice button",
+        "Slash-command chips post /orchestrate, /answer, /cancel via the voice substrate",
+        "Even HUD bring-up uses createStartUpPageContainer once, then textContainerUpgrade",
+        "src/hub/speech.ts is not referenced anywhere",
+        "npm run typecheck passes",
+        "npm test passes"
+      ],
+      "verify": "## Setup\n- `npm install` once.\n\n## Automated\n- `npm run typecheck`\n- `npm test`\n\n## Manual\n- Open the hub in a phone-sized viewport; verify panels and tap targets visually.\n- Inspect the Even HUD adapter for the single-startup contract.",
+      "dependsOn": ["foundation-protocol-and-docs"],
+      "openPR": true
+    },
+    {
+      "name": "integration-merge",
+      "type": "worker",
+      "model": "composer-2.5-fast",
+      "scopedGoal": "Merge cursor-cloud-client, auth-signin-cursor, voice-substrate, and ui-glasses-layout into a single integration branch. Resolve conflicts, run the full typecheck + test suite, and open a single integration PR.",
+      "brief": "## Inputs\n\nUpstream branches (the script will paste each upstream handoff into your prompt; trust the `## Branch` line in each):\n- cursor-cloud-client\n- auth-signin-cursor\n- voice-substrate\n- ui-glasses-layout\n\n## Merge strategy\n\n1. Start from `orch/evencursor/cursor-cloud-client` (the bridge spine).\n2. Merge `auth-signin-cursor`. Conflicts likely in `src/bridge/server.ts`; prefer the auth slice's route surface and re-apply cursor-cloud-client's route additions on top.\n3. Merge `voice-substrate` (subplanner deliverable branch). Conflicts likely in `src/bridge/server.ts` (route table) and `src/shared/protocol.ts` (`BridgeEvent` union). Union both sides; keep `voice.transcript` / `voice.command` events.\n4. Merge `ui-glasses-layout`. Conflicts likely in `src/hub/main.ts`, `src/hub/styles.css`, `src/hub/even.ts`. Prefer ui-glasses-layout's structure; re-wire the voice substrate hooks (`onTranscript`/`onCommand`) and the sign-in gate after each merge.\n5. Run `npm install && npm run typecheck && npm test` between merges; do not advance with a broken tree.\n\n## After merging\n\n- Hand-sanity-check the README / docs to make sure they reflect the merged behavior (sign-in gate, voice flow, glasses HUD).\n- Open a single draft PR against `main` titled \"evencursor: rework for Cursor cloud agents + Even glasses + Deepgram voice\". Body must list each upstream slice with its branch name and PR (if any), plus a short integration testing summary.\n\n## Acceptance\n\n- A single merge commit (or fast-forward chain) ties all four slices together.\n- `npm run typecheck` passes.\n- `npm test` passes.\n- One integration PR exists, draft, against main.\n\n## Measurements\n\nReport:\n- `LOC(src)` via `git ls-files src | xargs wc -l | tail -n1`.\n- `tests-passed` via `npm test -- --reporter=verbose` (parse `Tests` line).",
+      "pathsAllowed": [
+        "**"
+      ],
+      "acceptance": [
+        "All four upstream branches are merged into the integration branch",
+        "npm run typecheck passes on the integration branch",
+        "npm test passes on the integration branch",
+        "A single draft PR targets main with all slices listed in the body"
+      ],
+      "verify": "## Setup\n- `npm install` on the integration branch.\n\n## Automated\n- `npm run typecheck`\n- `npm test`\n\n## Manual\n- Open the PR in GitHub and confirm the body lists each upstream slice.",
+      "dependsOn": [
+        "cursor-cloud-client",
+        "auth-signin-cursor",
+        "voice-substrate",
+        "ui-glasses-layout"
+      ],
+      "openPR": true,
+      "maxAttempts": 2,
+      "measurements": [
+        {
+          "name": "LOC(src)",
+          "command": "git ls-files src | xargs wc -l | tail -n1 | awk '{print $1}'",
+          "parser": { "kind": "regex", "pattern": "^(\\d+)$" }
+        }
+      ]
+    }
+  ]
+}
