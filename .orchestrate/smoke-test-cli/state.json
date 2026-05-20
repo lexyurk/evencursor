@@ -51,6 +51,10 @@
     {
       "at": "2026-05-20T20:04:21.864Z",
       "message": "marker: spawn failed after 3 transient sub-attempts: i: {\"code\":\"internal\",\"message\":\"Error\"}"
+    },
+    {
+      "at": "2026-05-20T20:06:13.327Z",
+      "message": "verify-marker: pruned before spawn (operator)"
     }
   ]
 }
