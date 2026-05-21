@@ -4,8 +4,15 @@ import {
   DETAIL_STATUS_CONTAINER_NAME
 } from "../pages.js";
 
-const { bridge, waitForEvenAppBridge } = vi.hoisted(() => {
+const { bridge, bridgeStorage, waitForEvenAppBridge } = vi.hoisted(() => {
+  const bridgeStorage = new Map<string, string>();
+
   const bridge = {
+    setLocalStorage: vi.fn(async (key: string, value: string) => {
+      bridgeStorage.set(key, value);
+      return true;
+    }),
+    getLocalStorage: vi.fn(async (key: string) => bridgeStorage.get(key) ?? ""),
     createStartUpPageContainer: vi.fn(async () => 0),
     rebuildPageContainer: vi.fn(async () => true),
     textContainerUpgrade: vi.fn(async () => true),
@@ -16,6 +23,7 @@ const { bridge, waitForEvenAppBridge } = vi.hoisted(() => {
 
   return {
     bridge,
+    bridgeStorage,
     waitForEvenAppBridge: vi.fn(async () => bridge)
   };
 });
@@ -30,6 +38,7 @@ vi.mock("@evenrealities/even_hub_sdk", async () => {
   };
 });
 
+import { resetBridgeProbeCacheForTests } from "../../storage/bridge-probe.js";
 import { GlassesAdapter } from "../adapter.js";
 
 describe("GlassesAdapter", () => {
@@ -38,11 +47,21 @@ describe("GlassesAdapter", () => {
       setTimeout: globalThis.setTimeout,
       clearTimeout: globalThis.clearTimeout
     });
+    bridgeStorage.clear();
     vi.clearAllMocks();
+    resetBridgeProbeCacheForTests();
     waitForEvenAppBridge.mockResolvedValue(bridge);
+    bridge.setLocalStorage.mockImplementation(async (key: string, value: string) => {
+      bridgeStorage.set(key, value);
+      return true;
+    });
+    bridge.getLocalStorage.mockImplementation(
+      async (key: string) => bridgeStorage.get(key) ?? ""
+    );
   });
 
   afterEach(() => {
+    resetBridgeProbeCacheForTests();
     vi.unstubAllGlobals();
   });
 
@@ -95,6 +114,26 @@ describe("GlassesAdapter", () => {
 
     expect(bridge.createStartUpPageContainer).toHaveBeenCalledTimes(1);
     expect(bridge.rebuildPageContainer).toHaveBeenCalledTimes(1);
+  });
+
+  it("reports unavailable when the bridge probe fails", async () => {
+    bridge.setLocalStorage.mockResolvedValue(false);
+    const debugSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
+
+    const adapter = new GlassesAdapter();
+    const { available } = await adapter.init();
+
+    expect(available).toBe(false);
+    await adapter.showAgentList(["RUNNING  one"], "1 agents · tap to select");
+    expect(bridge.createStartUpPageContainer).not.toHaveBeenCalled();
+    expect(debugSpy).toHaveBeenCalledWith(
+      "[glasses no-op]",
+      "showAgentList",
+      ["RUNNING  one"],
+      "1 agents · tap to select"
+    );
+
+    debugSpy.mockRestore();
   });
 
   it("updates the middle detail container via textContainerUpgrade", async () => {

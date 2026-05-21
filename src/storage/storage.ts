@@ -1,35 +1,23 @@
-import { waitForEvenAppBridge } from "@evenrealities/even_hub_sdk";
+import type { EvenAppBridge } from "@evenrealities/even_hub_sdk";
+import { getBridgeIfAvailable, isEvenHubAvailable } from "./bridge-probe.js";
 
-const BRIDGE_TIMEOUT_MS = 500;
-
-async function withBridgeTimeout(): Promise<
-  Awaited<ReturnType<typeof waitForEvenAppBridge>> | undefined
-> {
-  try {
-    return await Promise.race([
-      waitForEvenAppBridge(),
-      new Promise<undefined>((resolve) =>
-        setTimeout(() => resolve(undefined), BRIDGE_TIMEOUT_MS)
-      )
-    ]);
-  } catch {
-    return undefined;
-  }
-}
+export { isEvenHubAvailable };
 
 export class KeyStore {
-  private bridgePromise: ReturnType<typeof withBridgeTimeout> | undefined;
+  private availableBridgePromise: Promise<EvenAppBridge | null> | undefined;
 
-  private bridge(): ReturnType<typeof withBridgeTimeout> {
-    this.bridgePromise ??= withBridgeTimeout();
-    return this.bridgePromise;
+  private bridge(): Promise<EvenAppBridge | null> {
+    this.availableBridgePromise ??= getBridgeIfAvailable();
+    return this.availableBridgePromise;
   }
 
   async getKey(name: string): Promise<string | undefined> {
     const bridge = await this.bridge();
     if (bridge) {
       const value = await bridge.getLocalStorage(name);
-      return value.length > 0 ? value : undefined;
+      if (value.length > 0) {
+        return value;
+      }
     }
     const raw = window.localStorage.getItem(name);
     return raw && raw.length > 0 ? raw : undefined;
@@ -37,15 +25,18 @@ export class KeyStore {
 
   async setKey(name: string, value: string | undefined): Promise<void> {
     const bridge = await this.bridge();
-    const stored = value ?? "";
-    if (bridge) {
-      await bridge.setLocalStorage(name, stored);
-      return;
-    }
+
     if (value === undefined || value === "") {
       window.localStorage.removeItem(name);
-    } else {
-      window.localStorage.setItem(name, value);
+      if (bridge) {
+        await bridge.setLocalStorage(name, "");
+      }
+      return;
+    }
+
+    window.localStorage.setItem(name, value);
+    if (bridge) {
+      await bridge.setLocalStorage(name, value);
     }
   }
 }

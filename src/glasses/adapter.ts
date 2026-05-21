@@ -2,9 +2,9 @@ import {
   CreateStartUpPageContainer,
   RebuildPageContainer,
   TextContainerUpgrade,
-  waitForEvenAppBridge,
   type EvenAppBridge
 } from "@evenrealities/even_hub_sdk";
+import { getBridgeIfAvailable } from "../storage/bridge-probe.js";
 import {
   buildAgentDetailPage,
   buildAgentListPage,
@@ -12,8 +12,6 @@ import {
   DETAIL_STATUS_CONTAINER_ID,
   DETAIL_STATUS_CONTAINER_NAME
 } from "./pages.js";
-
-const BRIDGE_TIMEOUT_MS = 500;
 
 export type AgentDetailHudArgs = {
   title: string;
@@ -29,17 +27,7 @@ export class GlassesAdapter {
   private detailStatusLine = "";
 
   async init(): Promise<{ available: boolean }> {
-    try {
-      this.bridge = await Promise.race([
-        waitForEvenAppBridge(),
-        new Promise<undefined>((resolve) =>
-          setTimeout(() => resolve(undefined), BRIDGE_TIMEOUT_MS)
-        )
-      ]);
-    } catch {
-      this.bridge = undefined;
-    }
-
+    this.bridge = (await getBridgeIfAvailable()) ?? undefined;
     this.available = this.bridge !== undefined;
     return { available: this.available };
   }
