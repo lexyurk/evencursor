@@ -41,11 +41,11 @@
       "finishedAt": "2026-05-21T05:22:25.444Z",
       "lastUpdate": "2026-05-21T05:22:26.506Z",
       "note": null,
+      "attempts": 1,
       "slackTs": null,
       "prNumber": null,
       "failureMode": null,
-      "verification": "unit-test-verified",
-      "attempts": 1
+      "verification": "unit-test-verified"
     },
     {
       "name": "voice-client",
@@ -65,11 +65,11 @@
       "finishedAt": "2026-05-21T05:21:53.207Z",
       "lastUpdate": "2026-05-21T05:21:54.402Z",
       "note": null,
+      "attempts": 1,
       "slackTs": null,
       "prNumber": null,
       "failureMode": null,
-      "verification": "unit-test-verified",
-      "attempts": 1
+      "verification": "unit-test-verified"
     },
     {
       "name": "glasses-client",
@@ -89,11 +89,11 @@
       "finishedAt": "2026-05-21T05:22:09.779Z",
       "lastUpdate": "2026-05-21T05:22:10.883Z",
       "note": null,
+      "attempts": 1,
       "slackTs": null,
       "prNumber": null,
       "failureMode": null,
-      "verification": "unit-test-verified",
-      "attempts": 1
+      "verification": "unit-test-verified"
     },
     {
       "name": "app-shell",
@@ -113,13 +113,13 @@
       "handoffPath": "handoffs/app-shell.md",
       "startedAt": "2026-05-21T05:22:30.861Z",
       "finishedAt": "2026-05-21T05:26:15.184Z",
-      "lastUpdate": "2026-05-21T05:26:18.228Z",
+      "lastUpdate": "2026-05-21T05:42:39.026Z",
       "note": null,
+      "attempts": 1,
       "slackTs": null,
       "prNumber": 2,
       "failureMode": null,
-      "verification": "unit-test-verified",
-      "attempts": 1
+      "verification": "verifier-failed"
     },
     {
       "name": "verify-app-shell",
@@ -136,14 +136,62 @@
       "resultStatus": "finished",
       "handoffPath": "handoffs/verify-app-shell.md",
       "startedAt": "2026-05-21T05:26:23.765Z",
-      "finishedAt": "2026-05-21T05:42:38.014Z",
-      "lastUpdate": "2026-05-21T05:42:38.014Z",
+      "finishedAt": "2026-05-21T05:42:37.988Z",
+      "lastUpdate": "2026-05-21T05:42:37.988Z",
+      "note": null,
+      "attempts": 1,
+      "slackTs": null,
+      "prNumber": null,
+      "failureMode": null,
+      "verification": null
+    },
+    {
+      "name": "fix-keystore-fallback",
+      "type": "worker",
+      "branch": "orch/evencursor-rework/fix-keystore-fallback",
+      "startingRef": "orch/evencursor-rework/app-shell",
+      "dependsOn": [
+        "app-shell",
+        "verify-app-shell"
+      ],
+      "agentId": null,
+      "runId": null,
+      "parentAgentId": null,
+      "status": "pending",
+      "resultStatus": null,
+      "handoffPath": null,
+      "startedAt": null,
+      "finishedAt": null,
+      "lastUpdate": null,
       "note": null,
       "slackTs": null,
       "prNumber": null,
       "failureMode": null,
-      "verification": null,
-      "attempts": 1
+      "verification": null
+    },
+    {
+      "name": "reverify-app-shell",
+      "type": "verifier",
+      "branch": "orch/evencursor-rework/reverify-app-shell",
+      "startingRef": "orch/evencursor-rework/app-shell",
+      "dependsOn": [
+        "app-shell",
+        "fix-keystore-fallback"
+      ],
+      "agentId": null,
+      "runId": null,
+      "parentAgentId": null,
+      "status": "pending",
+      "resultStatus": null,
+      "handoffPath": null,
+      "startedAt": null,
+      "finishedAt": null,
+      "lastUpdate": null,
+      "note": null,
+      "slackTs": null,
+      "prNumber": null,
+      "failureMode": null,
+      "verification": null
     }
   ],
   "attention": [
@@ -198,6 +246,10 @@
     {
       "at": "2026-05-21T05:26:18.228Z",
       "message": "app-shell: verification self-reported (unit-test-verified)"
+    },
+    {
+      "at": "2026-05-21T05:42:39.026Z",
+      "message": "app-shell: verification recorded (verifier-failed) by verifier verify-app-shell"
     }
   ]
 }

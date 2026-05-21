@@ -174,6 +174,55 @@
         "Verification section names which acceptance criteria in `app-shell` were met live vs unit-tested vs blocked.",
         "PR exists on `main` with the required title."
       ]
+    },
+    {
+      "name": "fix-keystore-fallback",
+      "type": "worker",
+      "model": "composer-2.5",
+      "dependsOn": ["app-shell", "verify-app-shell"],
+      "startingRef": "orch/evencursor-rework/app-shell",
+      "openPR": false,
+      "scopedGoal": "Fix the high-severity bug surfaced by `verify-app-shell`: in browser dev mode, the Even Hub SDK's `waitForEvenAppBridge()` always resolves to a non-functional bridge singleton, so `KeyStore` writes to a bridge whose `setLocalStorage` silently no-ops, and the `window.localStorage` fallback is never reached. As a result, the App shell never mounts `VoiceBar` / `AgentsList` after sign-in. Same issue causes `GlassesAdapter` to report `available=true` when the bridge cannot actually round-trip messages, causing every HUD call to silently fail.\n\nConcrete fixes:\n\n1. **`src/storage/storage.ts`** — replace the time-race-only detection with a **capability probe** that performs a real round-trip:\n   - After `waitForEvenAppBridge()` resolves (or its 500 ms timeout fires), if a bridge was returned, do a one-shot probe: `bridge.setLocalStorage('evencursor.bridge-probe', 'ok')` and `bridge.getLocalStorage('evencursor.bridge-probe')`. If `setLocalStorage` returns `false` OR the readback is not `'ok'`, treat the bridge as **unavailable** and fall back to `window.localStorage` for every subsequent call.\n   - Cache the probe result in a private field on `KeyStore` so it runs at most once per instance.\n   - When the bridge IS available, still write through to `window.localStorage` as a redundant local mirror (so a subsequent browser-only reload still has the value); reads prefer the bridge value but fall back to `localStorage` if the bridge returns empty.\n2. **`src/glasses/adapter.ts`** — `init()` should reuse the same probe pattern: detect a working bridge by doing a harmless `getDeviceInfo()` round-trip with a 500 ms timeout, OR by checking the storage probe result via a small shared helper (export `isEvenHubAvailable()` from `src/storage/storage.ts`). Only set `available = true` when the probe succeeded. Otherwise everything no-ops as today.\n3. **Refactor**: move the bridge probe into a shared module so both `storage.ts` and `glasses/adapter.ts` use it. The natural place is a new internal `src/storage/bridge-probe.ts` (or inside `storage.ts` if you prefer not to add a file). Export `getBridgeIfAvailable(): Promise<EvenAppBridge | null>` that returns the bridge only when round-trip works.\n4. **Tests**:\n   - Add `src/storage/__tests__/storage.test.ts` covering:\n     - probe success → values persist via bridge AND mirror to localStorage,\n     - probe failure (setLocalStorage returns false) → fall back to localStorage,\n     - probe failure (readback empty) → fall back to localStorage,\n     - get reads bridge first, then localStorage,\n     - delete (setKey with undefined) clears both layers,\n     - no bridge present (waitForEvenAppBridge throws / times out) → pure localStorage.\n   - Extend `src/glasses/__tests__/adapter.test.ts` (or add a new file) to assert `available=false` when the probe fails, even if the SDK returns a bridge object.\n5. **Live verification** — run `npm run dev`, open headless Chrome (or use the existing `.verifier/diagnose_keystore.mjs` repro at the root if it is still present from the verifier), and confirm:\n   - The `bridge.setLocalStorage` probe returns false (browser dev mode),\n   - The KeyStore falls back to `window.localStorage`,\n   - After sign-in, `.voice-bar` AND `.agents-list` selectors render,\n   - DevTools Network tab shows a `GET /v1/agents` request and the rendered list reflects the response.\n   Capture two screenshots (`/opt/cursor/artifacts/keystore_fix_signin.png` and `/opt/cursor/artifacts/keystore_fix_agentslist.png`) and reference them in your handoff.\n6. **Verifier artifacts cleanup**: delete the `.verifier/` directory committed by the verifier (it should not ship in the final PR). Commit with message `Drop verifier-only artifacts`.\n7. Run `npm run typecheck && npm run test && npm run build` — all MUST stay green; test count should increase (≥ 32 total).\n8. Push to `orch/evencursor-rework/app-shell` (do NOT create a new branch) so PR #2 picks the fix up automatically. Do NOT open a new PR.\n\nMeasurement note: report `total-test-count`, `final-typecheck-exit`, `final-build-exit`, and `live-signin-unlocks-agents` (true|false) in `## Measurements`.",
+      "pathsAllowed": [
+        "src/storage/**",
+        "src/glasses/**",
+        "src/ui/**",
+        "src/main.ts",
+        "package.json",
+        "package-lock.json",
+        ".verifier/**",
+        "docs/spec.md"
+      ],
+      "pathsForbidden": [
+        "src/cursor/**",
+        "src/voice/**",
+        "src/shared/**",
+        ".orchestrate/**"
+      ],
+      "acceptance": [
+        "`src/storage/storage.ts` performs a sentinel round-trip probe and falls back to `window.localStorage` whenever the probe fails.",
+        "`src/glasses/adapter.ts` uses the same probe (directly or via shared helper) so `available` is true only when the bridge can actually round-trip.",
+        "Storage unit tests cover probe-success, probe-failure, and no-bridge code paths.",
+        "Live `npm run dev` → SignIn → App: `.voice-bar` and `.agents-list` selectors render and `GET /v1/agents` fires.",
+        "`.verifier/` directory is removed from the branch.",
+        "`npm run typecheck`, `npm run test`, `npm run build` all exit 0; test count is ≥ 32 with the new storage tests.",
+        "Pushed to `orch/evencursor-rework/app-shell` (PR #2 updated implicitly)."
+      ],
+      "verify": "## Setup\n- `npm install` against the updated branch.\n\n## Automated\n- `npm run typecheck`, `npm run test`, `npm run build`.\n- Run the new `src/storage/__tests__/storage.test.ts` directly.\n\n## Manual\n- `npm run dev`, open the URL in Chrome, paste a Cursor API key, confirm the AgentsList renders (network tab shows `/v1/agents` 200).\n- In DevTools console: `localStorage.getItem('cursor.apiKey')` returns the pasted key (proves fallback wrote through)."
+    },
+    {
+      "name": "reverify-app-shell",
+      "type": "verifier",
+      "verifies": "app-shell",
+      "model": "claude-opus-4-7",
+      "dependsOn": ["fix-keystore-fallback"],
+      "startingRef": "orch/evencursor-rework/app-shell",
+      "scopedGoal": "Re-verify the app-shell branch after the keystore-fallback fix. Run the full `npm install && npm run typecheck && npm run test && npm run build` chain, then exercise the live dev server: SignIn → AgentsList rendering, agent click → AgentDetail + SSE stream visible in DevTools Network, and the parseTranscript → command-bus harness (you may reuse the previous harness pattern; do NOT commit `.verifier/` artifacts unless the previous attempt's `.verifier/` directory has been wiped — re-create them ephemerally if needed). Use the real `CURSOR_API_KEY` from the env if available. File a fresh verdict (`live-ui-verified` if the live flow finally works end-to-end; `unit-test-verified` if you can only confirm via automated tests; `verifier-failed` only if there is a NEW blocking regression).",
+      "acceptance": [
+        "Verification section contains current exit codes for typecheck, test, build.",
+        "Verification section confirms whether SignIn → AgentsList unlocks live in `npm run dev`.",
+        "Verification section confirms whether selecting an agent attaches the SSE stream in DevTools."
+      ]
     }
   ]
 }
