@@ -149,6 +149,10 @@
     {
       "at": "2026-05-21T05:16:16.185Z",
       "message": "scaffold: spawn failed after 3 transient sub-attempts: l: [invalid_model] Model 'composer-2.5-fast' is not available or invalid. run `bun cli.ts models --check` to re-probe the catalog against /v1/agents."
+    },
+    {
+      "at": "2026-05-21T05:17:03.719Z",
+      "message": "scaffold: respawned by local-cli (was error)"
     }
   ]
 }
