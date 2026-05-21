@@ -101,7 +101,7 @@ export function mountApp({ root, keyStore, glasses, onSignOut }: AppDeps): () =>
   ): Promise<() => void> => glasses.openMic(sendPcm);
 
   const syncGlassesList = (agents: Agent[]): void => {
-    if (voiceActive || actionMenuActive) {
+    if (voiceActive || actionMenuActive || detailHandle) {
       return;
     }
     const filter = repoFilter ?? "";

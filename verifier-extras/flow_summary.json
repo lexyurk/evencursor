@@ -1,0 +1,48 @@
+{
+  "steps": [
+    {
+      "step": "boot-list",
+      "kind": "list",
+      "rows": [
+        "+ New agent · dictate a prompt",
+        "RUNNING  Refactor billing module",
+        "FINISHED  Add OAuth login"
+      ]
+    },
+    {
+      "step": "after-click-agent",
+      "kind": "detail",
+      "rows": [
+        "Refactor billing module",
+        "RUNNING · run run_alph…  ·  lexyurk/billing\n[tool] ReadFile src/billing/stripe.ts\nInspecting StripeAdapter for hidden coupling.\n[tool] Grep StripeClient src/\nRefactoring webhook signature verification."
+      ]
+    },
+    {
+      "step": "after-double-click",
+      "kind": "list",
+      "rows": [
+        "Cancel run",
+        "Archive",
+        "Delete agent",
+        "Back"
+      ]
+    },
+    {
+      "step": "after-back-from-actions",
+      "kind": "detail",
+      "rows": [
+        "Refactor billing module",
+        "RUNNING · run run_alph…  ·  lexyurk/billing\n[tool] ReadFile src/billing/stripe.ts\nInspecting StripeAdapter for hidden coupling.\n[tool] Grep StripeClient src/\nRefactoring webhook signature verification."
+      ]
+    },
+    {
+      "step": "after-back-to-list",
+      "kind": "list",
+      "rows": [
+        "+ New agent · dictate a prompt",
+        "RUNNING  Refactor billing module",
+        "FINISHED  Add OAuth login"
+      ]
+    }
+  ]
+}
