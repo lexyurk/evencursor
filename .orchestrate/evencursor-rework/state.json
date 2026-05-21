@@ -164,11 +164,11 @@
       "finishedAt": "2026-05-21T05:51:56.828Z",
       "lastUpdate": "2026-05-21T05:51:57.930Z",
       "note": null,
-      "attempts": 1,
       "slackTs": null,
       "prNumber": null,
       "failureMode": null,
-      "verification": "live-ui-verified"
+      "verification": "live-ui-verified",
+      "attempts": 1
     },
     {
       "name": "reverify-app-shell",
@@ -182,18 +182,18 @@
       "agentId": "bc-97f0a0e4-dc4d-4fd4-8316-04ceb24f8fe1",
       "runId": "run-aa1ae772-84ed-483f-a1fe-9cf0b7c97f7a",
       "parentAgentId": "bc-952c06ce-c152-4ea0-997b-94d5cd4cd7aa",
-      "status": "cancelled",
-      "resultStatus": null,
-      "handoffPath": null,
+      "status": "error",
+      "resultStatus": "cancelled",
+      "handoffPath": "handoffs/reverify-app-shell.md",
       "startedAt": "2026-05-21T05:52:00.867Z",
-      "finishedAt": null,
-      "lastUpdate": "2026-05-21T05:54:49.907Z",
-      "note": "cancelled by operator via cli",
-      "attempts": 1,
+      "finishedAt": "2026-05-21T05:54:50.138Z",
+      "lastUpdate": "2026-05-21T05:54:50.138Z",
+      "note": null,
       "slackTs": null,
       "prNumber": null,
-      "failureMode": null,
-      "verification": null
+      "failureMode": "unknown",
+      "verification": null,
+      "attempts": 1
     }
   ],
   "attention": [
