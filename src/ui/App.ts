@@ -22,6 +22,9 @@ export type AppDeps = {
   onSignOut: () => void;
 };
 
+const NEW_AGENT_HUD_ROW = "+ New agent · dictate a prompt";
+const NEW_AGENT_HUD_INDEX = 0;
+
 function formatHudRow(agent: Agent): string {
   const status = agent.latestRun?.status ?? agent.status;
   const name = agent.name || "Untitled";
@@ -96,10 +99,10 @@ export function mountApp({ root, keyStore, glasses, onSignOut }: AppDeps): () =>
     const visible = filter
       ? agents.filter((agent) => repoMatches(agent, filter))
       : agents;
-    const rows = visible.map(formatHudRow);
+    const rows = [NEW_AGENT_HUD_ROW, ...visible.map(formatHudRow)];
     const footer = repoFilter
-      ? `${visible.length} in ${repoFilter}`
-      : `${visible.length} agents · tap to select`;
+      ? `${visible.length} in ${repoFilter} · click row · back to exit`
+      : `${visible.length} agents · click row · back to exit`;
     void glasses.showAgentList(rows, footer);
   };
 
@@ -311,12 +314,17 @@ export function mountApp({ root, keyStore, glasses, onSignOut }: AppDeps): () =>
         return;
       }
 
+      if (gesture.index === NEW_AGENT_HUD_INDEX) {
+        openNewAgentDialog();
+        return;
+      }
+
       const all = agentsHandle?.getAgents() ?? [];
       const filter = repoFilter ?? "";
       const visible = filter
         ? all.filter((agent) => repoMatches(agent, filter))
         : all;
-      const agent = visible[gesture.index];
+      const agent = visible[gesture.index - 1];
       if (agent) {
         selectAgent(agent);
       }
