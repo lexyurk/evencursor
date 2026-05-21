@@ -1,0 +1,41 @@
+{
+  "agentRowCount": 2,
+  "streamRequest": "https://api.cursor.com/v1/agents/agent_alpha/runs/run_alpha_1/stream",
+  "streamResponseContentType": "text/event-stream",
+  "streamResponseStatus": 200,
+  "assistantLogExcerpt": "Looking at the billing module.\n[thinking] Considering options\n[tool] read_file",
+  "realMeValidated": true,
+  "stages": [
+    {
+      "stage": "signin-shown",
+      "ok": true
+    },
+    {
+      "stage": "app-mounted",
+      "ok": true
+    },
+    {
+      "stage": "agents-list-rendered",
+      "ok": true,
+      "message": "2 rows"
+    },
+    {
+      "stage": "agent-detail-mounted",
+      "ok": true
+    },
+    {
+      "stage": "sse-request-issued",
+      "ok": true
+    },
+    {
+      "stage": "sse-response-received",
+      "ok": true,
+      "message": "200 text/event-stream"
+    },
+    {
+      "stage": "assistant-log-streamed",
+      "ok": true,
+      "message": "Looking at the billing module.\n[thinking] Considering options\n[tool] read_file"
+    }
+  ]
+}

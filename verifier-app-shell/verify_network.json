@@ -1,0 +1,30 @@
+[
+  {
+    "url": "https://api.cursor.com/v1/me",
+    "resourceType": "fetch",
+    "method": "GET",
+    "status": 200,
+    "contentType": "application/json; charset=utf-8"
+  },
+  {
+    "url": "https://api.cursor.com/v1/agents?limit=50",
+    "resourceType": "fetch",
+    "method": "GET",
+    "status": 200,
+    "contentType": "application/json"
+  },
+  {
+    "url": "https://api.cursor.com/v1/agents/agent_alpha/runs/run_alpha_1/stream",
+    "resourceType": "fetch",
+    "method": "GET",
+    "status": 200,
+    "contentType": "text/event-stream"
+  },
+  {
+    "url": "https://api.cursor.com/v1/agents?limit=50",
+    "resourceType": "fetch",
+    "method": "GET",
+    "status": 200,
+    "contentType": "application/json"
+  }
+]
