@@ -55,15 +55,15 @@
       "dependsOn": [
         "scaffold"
       ],
-      "agentId": null,
-      "runId": null,
-      "parentAgentId": null,
+      "agentId": "bc-9b1ca8c4-7c0e-4dde-b8bf-7fe76b9c33f2",
+      "runId": "run-675132b7-9c26-4566-9460-d763e6588740",
+      "parentAgentId": "bc-952c06ce-c152-4ea0-997b-94d5cd4cd7aa",
       "status": "running",
       "resultStatus": null,
       "handoffPath": null,
       "startedAt": "2026-05-21T05:20:24.840Z",
       "finishedAt": null,
-      "lastUpdate": "2026-05-21T05:20:24.840Z",
+      "lastUpdate": "2026-05-21T05:20:27.886Z",
       "note": null,
       "slackTs": null,
       "prNumber": null,
@@ -82,17 +82,18 @@
       "agentId": null,
       "runId": null,
       "parentAgentId": null,
-      "status": "pending",
+      "status": "running",
       "resultStatus": null,
       "handoffPath": null,
-      "startedAt": null,
+      "startedAt": "2026-05-21T05:20:27.887Z",
       "finishedAt": null,
-      "lastUpdate": null,
+      "lastUpdate": "2026-05-21T05:20:27.887Z",
       "note": null,
       "slackTs": null,
       "prNumber": null,
       "failureMode": null,
-      "verification": null
+      "verification": null,
+      "attempts": 1
     },
     {
       "name": "app-shell",
@@ -171,6 +172,10 @@
     {
       "at": "2026-05-21T05:20:24.840Z",
       "message": "voice-client: model \"composer-2.5\" not in MODEL_CATALOG (spawning anyway). Run `bun cli.ts models` to see known slugs."
+    },
+    {
+      "at": "2026-05-21T05:20:27.887Z",
+      "message": "glasses-client: model \"composer-2.5\" not in MODEL_CATALOG (spawning anyway). Run `bun cli.ts models` to see known slugs."
     }
   ]
 }
