@@ -113,12 +113,12 @@
       "handoffPath": "handoffs/app-shell.md",
       "startedAt": "2026-05-21T05:22:30.861Z",
       "finishedAt": "2026-05-21T05:26:15.184Z",
-      "lastUpdate": "2026-05-21T05:26:15.184Z",
+      "lastUpdate": "2026-05-21T05:26:18.228Z",
       "note": null,
       "slackTs": null,
       "prNumber": 2,
       "failureMode": null,
-      "verification": null,
+      "verification": "unit-test-verified",
       "attempts": 1
     },
     {
@@ -132,17 +132,18 @@
       "agentId": null,
       "runId": null,
       "parentAgentId": null,
-      "status": "pending",
+      "status": "running",
       "resultStatus": null,
       "handoffPath": null,
-      "startedAt": null,
+      "startedAt": "2026-05-21T05:26:23.765Z",
       "finishedAt": null,
-      "lastUpdate": null,
+      "lastUpdate": "2026-05-21T05:26:23.765Z",
       "note": null,
       "slackTs": null,
       "prNumber": null,
       "failureMode": null,
-      "verification": null
+      "verification": null,
+      "attempts": 1
     }
   ],
   "attention": [
@@ -193,6 +194,10 @@
     {
       "at": "2026-05-21T05:22:30.860Z",
       "message": "app-shell: model \"composer-2.5\" not in MODEL_CATALOG (spawning anyway). Run `bun cli.ts models` to see known slugs."
+    },
+    {
+      "at": "2026-05-21T05:26:18.228Z",
+      "message": "app-shell: verification self-reported (unit-test-verified)"
     }
   ]
 }
