@@ -31,15 +31,15 @@
       "dependsOn": [
         "scaffold"
       ],
-      "agentId": null,
-      "runId": null,
-      "parentAgentId": null,
+      "agentId": "bc-dbb0d394-eeb9-4611-aed1-7046dc81cc7e",
+      "runId": "run-8428c1f3-4a6e-4c3c-89a4-5053ea34832f",
+      "parentAgentId": "bc-952c06ce-c152-4ea0-997b-94d5cd4cd7aa",
       "status": "running",
       "resultStatus": null,
       "handoffPath": null,
       "startedAt": "2026-05-21T05:20:21.801Z",
       "finishedAt": null,
-      "lastUpdate": "2026-05-21T05:20:21.801Z",
+      "lastUpdate": "2026-05-21T05:20:24.838Z",
       "note": null,
       "slackTs": null,
       "prNumber": null,
@@ -58,17 +58,18 @@
       "agentId": null,
       "runId": null,
       "parentAgentId": null,
-      "status": "pending",
+      "status": "running",
       "resultStatus": null,
       "handoffPath": null,
-      "startedAt": null,
+      "startedAt": "2026-05-21T05:20:24.840Z",
       "finishedAt": null,
-      "lastUpdate": null,
+      "lastUpdate": "2026-05-21T05:20:24.840Z",
       "note": null,
       "slackTs": null,
       "prNumber": null,
       "failureMode": null,
-      "verification": null
+      "verification": null,
+      "attempts": 1
     },
     {
       "name": "glasses-client",
@@ -166,6 +167,10 @@
     {
       "at": "2026-05-21T05:20:21.800Z",
       "message": "cursor-client: model \"composer-2.5\" not in MODEL_CATALOG (spawning anyway). Run `bun cli.ts models` to see known slugs."
+    },
+    {
+      "at": "2026-05-21T05:20:24.840Z",
+      "message": "voice-client: model \"composer-2.5\" not in MODEL_CATALOG (spawning anyway). Run `bun cli.ts models` to see known slugs."
     }
   ]
 }
