@@ -1,0 +1,16 @@
+{
+  "name": "evencursor-verifier",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "harness": "vitest run --config vitest.config.ts",
+    "live:signin": "node signin_live.mjs",
+    "live:diagnose": "node diagnose_keystore.mjs",
+    "live:screenshot": "node screenshot_stuck.mjs"
+  },
+  "devDependencies": {
+    "jsdom": "^26.0.0",
+    "puppeteer-core": "^25.0.0",
+    "vitest": "^3.2.4"
+  }
+}

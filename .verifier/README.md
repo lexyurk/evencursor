@@ -7,9 +7,7 @@ branch `orch/evencursor-rework/app-shell`.
 
 ```bash
 cd .verifier
-# install puppeteer-core for live UI repro and vitest for harness
-npm init -y
-npm install puppeteer-core jsdom vitest typescript
+npm install
 ```
 
 Run a headless Chrome with a remote debugging port the puppeteer scripts
@@ -79,7 +77,7 @@ This breaks `docs/spec.md` §9.3.
 
 ## parseTranscript → VoiceBar command bus round-trip
 
-`voicebar_harness.test.ts` mounts `VoiceBar` with `DeepgramLive` and
+`voicebar_harness.spec-only.ts` mounts `VoiceBar` with `DeepgramLive` and
 `BrowserMic` mocked, simulates `speech_final` chunks, and asserts the
 right `VoiceCommand` is dispatched on the command bus. Covers `/refresh`,
 `/select N`, `/new …`, `/follow up …`, `/sign out`, interim transcripts
