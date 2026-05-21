@@ -1,144 +1,70 @@
 # evencursor
 
-Voice-first Even Realities HUD for managing Cursor Agent sessions.
+Voice-first Even Realities G2 plugin for managing **Cursor Cloud Agents** from the glasses HUD or phone WebView.
 
-\`evencursor\` is a small open-source bridge between:
-
-- **Even Realities G2 / Even Hub** as a glanceable HUD.
-- **Cursor Agent CLI** as the coding agent runtime.
-- **Your voice** as the input layer for creating sessions and answering agent questions.
-
-The goal is not to put an IDE on smart glasses. The goal is to keep Cursor work moving when the agent only needs a short human decision.
-
-## Product Shape
-
-The core interface is an **Agent Voice Inbox**:
-
-~~~text
-NEEDS YOU
-Cursor: choose auth strategy
-Cursor: approve test command
-Cursor: clarify expected UX
-~~~
-
-You can:
-
-1. Dictate a new Cursor task.
-2. Review a compact task draft.
-3. Launch a Cursor Agent session.
-4. See which sessions are running, done, failed, or waiting for you.
-5. Answer short agent questions by voice.
-6. Send the answer back to the matching Cursor session.
+The app is a Vite SPA with no local Node bridge. It talks directly to the [Cursor Cloud Agent REST API](https://cursor.com/docs/cloud-agent/api/endpoints), streams live transcription through [Deepgram](https://developers.deepgram.com/docs/live-streaming-audio), and renders glanceable status on the G2 display via [`@evenrealities/even_hub_sdk`](https://www.npmjs.com/package/@evenrealities/even_hub_sdk).
 
 ## Architecture
 
-~~~text
-Even Hub web app / phone browser
-        |
-        | HTTP + WebSocket
-        v
-evencursor bridge
-        |
-        | cursor-agent CLI
-        v
-Cursor Agent sessions
-~~~
+```text
+Even Hub WebView (Vite SPA)
+  ├── UI (vanilla TypeScript)
+  ├── CursorClient → https://api.cursor.com/v1
+  ├── DeepgramLive → wss://api.deepgram.com/v1/listen
+  └── GlassesAdapter → Even Hub SDK (576×288 HUD)
+```
 
-The bridge is intentionally local-first. It does not require OpenClaw, Claude, Codex, or any private infrastructure.
-
-## Current MVP
-
-- Hub UI with session overview and question queue.
-- Browser voice dictation via Web Speech API when available.
-- Even Hub SDK adapter for rendering 1-3 line HUD summaries.
-- Local bridge API for launching Cursor Agent sessions.
-- Cursor session state normalized into \`running\`, \`waiting\`, \`done\`, and \`failed\`.
-- Heuristic question extraction from Cursor output.
-- Resume flow for sending a voice answer back into the Cursor session.
+Sign-in is paste-once: a Cursor user API key from [cursor.com/dashboard/integrations](https://cursor.com/dashboard/integrations) and a Deepgram API key from the [Deepgram console](https://console.deepgram.com/). Keys persist through the Even App bridge when available, otherwise `window.localStorage`.
 
 ## Requirements
 
 - Node.js 20+
-- Cursor Agent CLI installed and authenticated:
+- [Even Hub CLI](https://hub.evenrealities.com/docs/reference/cli) for packaging (`evenhub`)
+- Cursor Cloud Agent API key
+- Deepgram API key
 
-~~~bash
-cursor-agent status
-~~~
+## Development
 
-If your binary is not named \`cursor-agent\`, set:
-
-~~~bash
-CURSOR_AGENT_BIN=/path/to/cursor-agent
-~~~
-
-## Setup
-
-~~~bash
+```bash
 npm install
 npm run typecheck
-npm run dev:bridge
-npm run dev:hub
-~~~
+npm run dev
+```
 
-Then open the Vite URL on your phone or through Even Hub.
+Open the Vite URL on your phone or in the [Even Hub simulator](https://hub.evenrealities.com/docs/getting-started/overview) for desktop preview. The glasses HUD adapter no-ops in a normal browser when the Even App bridge is absent.
 
-## Bridge Environment
+## Even Hub install
 
-Create \`.env\` if needed:
+1. Build the web app:
 
-~~~bash
-EVENCURSOR_PORT=8787
-CURSOR_AGENT_BIN=cursor-agent
-EVENCURSOR_DEFAULT_WORKSPACE=/path/to/repo
-~~~
+   ```bash
+   npm run build
+   ```
 
-## API Sketch
+2. Pack the plugin (manifest lives in `public/app.json`; copy it into `dist/` if your bundler does not):
 
-Create a session:
+   ```bash
+   cp public/app.json dist/app.json
+   evenhub pack dist/app.json dist -o evencursor.ehpk
+   ```
 
-~~~bash
-curl -X POST http://localhost:8787/api/sessions \\
-  -H 'content-type: application/json' \\
-  -d '{
-    "title": "Fix auth regression",
-    "workspace": "/path/to/repo",
-    "prompt": "Investigate why auth tests fail. Return patch and tests.",
-    "mode": "agent",
-    "worktree": true
-  }'
-~~~
+3. Upload `evencursor.ehpk` through the [Even Hub developer portal](https://hub.evenrealities.com/docs/reference/packaging).
 
-Answer a question:
+Grant network access to `api.cursor.com` and `api.deepgram.com` as declared in `app.json`. Use `g2-microphone` on device or `phone-microphone` in the simulator.
 
-~~~bash
-curl -X POST http://localhost:8787/api/sessions/<id>/answer \\
-  -H 'content-type: application/json' \\
-  -d '{"text":"Inspect first. Do not modify backend auth yet."}'
-~~~
+## Scripts
 
-## Safety Model
+| Script        | Purpose                          |
+|---------------|----------------------------------|
+| `npm run dev` | Vite dev server on port 5173     |
+| `npm run build` | Typecheck + production bundle  |
+| `npm run preview` | Preview production build     |
+| `npm run typecheck` | `tsc --noEmit`               |
+| `npm run test` | Vitest unit tests               |
 
-- Cursor command execution remains governed by Cursor Agent itself.
-- \`evencursor\` does not auto-approve shell commands.
-- The HUD should show decisions, blockers, artifacts, and risks, not full logs.
-- Public deployments should put the bridge behind auth/TLS before exposing it outside localhost.
+## Spec
 
-## Non-Goals
-
-- Not a general multi-agent cockpit.
-- Not an IDE replacement.
-- Not an OpenClaw-specific project.
-- Not a notification system.
-- Not a cloud service by default.
-
-## Roadmap
-
-- Even R1 / glasses input event mapping.
-- Native Even mic PCM transcription path.
-- Better Cursor ACP integration once the practical API surface stabilizes.
-- Authenticated remote relay for away-from-laptop operation.
-- GitHub PR / branch artifact cards.
-- Session comparison: run two Cursor sessions and show concise conclusion diff.
+Implementation details and acceptance criteria: [`docs/spec.md`](docs/spec.md).
 
 ## License
 
