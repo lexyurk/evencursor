@@ -11,14 +11,24 @@ import {
   buildAgentDetailPage,
   buildAgentListPage,
   buildDetailStatusContent,
+  buildVoicePage,
+  buildVoiceTranscriptContent,
   DETAIL_STATUS_CONTAINER_ID,
-  DETAIL_STATUS_CONTAINER_NAME
+  DETAIL_STATUS_CONTAINER_NAME,
+  VOICE_TRANSCRIPT_CONTAINER_ID,
+  VOICE_TRANSCRIPT_CONTAINER_NAME
 } from "./pages.js";
 
 export type AgentDetailHudArgs = {
   title: string;
   statusLine: string;
   lastDelta: string;
+  footer: string;
+};
+
+export type VoiceHudArgs = {
+  title: string;
+  transcript: string;
   footer: string;
 };
 
@@ -68,6 +78,35 @@ export class GlassesAdapter {
     this.detailStatusLine = args.statusLine;
     await this.bridge.rebuildPageContainer(
       new RebuildPageContainer(buildAgentDetailPage(args))
+    );
+  }
+
+  async showVoicePage(args: VoiceHudArgs): Promise<void> {
+    if (!this.available || !this.bridge) {
+      this.noOp("showVoicePage", args);
+      return;
+    }
+
+    await this.bridge.rebuildPageContainer(
+      new RebuildPageContainer(buildVoicePage(args))
+    );
+  }
+
+  async updateVoiceTranscript(transcript: string): Promise<void> {
+    if (!this.available || !this.bridge) {
+      this.noOp("updateVoiceTranscript", transcript);
+      return;
+    }
+
+    const content = buildVoiceTranscriptContent(transcript);
+    await this.bridge.textContainerUpgrade(
+      new TextContainerUpgrade({
+        containerID: VOICE_TRANSCRIPT_CONTAINER_ID,
+        containerName: VOICE_TRANSCRIPT_CONTAINER_NAME,
+        contentOffset: 0,
+        contentLength: content.length,
+        content
+      })
     );
   }
 

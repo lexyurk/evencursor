@@ -20,6 +20,7 @@ export type AgentDetailDeps = {
 export type AgentDetailHandle = {
   destroy: () => void;
   applyVoiceFollowUp: (prompt: string) => void;
+  repaintHud: () => void;
 };
 
 function escapeHtml(value: string): string {
@@ -453,6 +454,7 @@ export function mountAgentDetail(deps: AgentDetailDeps): AgentDetailHandle {
       stopStream();
       root.replaceChildren();
     },
-    applyVoiceFollowUp
+    applyVoiceFollowUp,
+    repaintHud: renderHud
   };
 }

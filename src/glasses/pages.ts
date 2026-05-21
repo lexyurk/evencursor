@@ -13,6 +13,12 @@ export type AgentDetailPageArgs = {
   footer: string;
 };
 
+export type VoicePageArgs = {
+  title: string;
+  transcript: string;
+  footer: string;
+};
+
 export const LIST_CONTAINER_ID = 1;
 export const LIST_CONTAINER_NAME = "agent-list";
 export const LIST_FOOTER_CONTAINER_ID = 2;
@@ -24,6 +30,13 @@ export const DETAIL_STATUS_CONTAINER_ID = 2;
 export const DETAIL_STATUS_CONTAINER_NAME = "detail-status";
 export const DETAIL_FOOTER_CONTAINER_ID = 3;
 export const DETAIL_FOOTER_CONTAINER_NAME = "detail-footer";
+
+export const VOICE_TITLE_CONTAINER_ID = 1;
+export const VOICE_TITLE_CONTAINER_NAME = "voice-title";
+export const VOICE_TRANSCRIPT_CONTAINER_ID = 2;
+export const VOICE_TRANSCRIPT_CONTAINER_NAME = "voice-transcript";
+export const VOICE_FOOTER_CONTAINER_ID = 3;
+export const VOICE_FOOTER_CONTAINER_NAME = "voice-footer";
 
 export const CANVAS_WIDTH = 576;
 export const CANVAS_HEIGHT = 288;
@@ -113,6 +126,43 @@ export function buildAgentListPage(
         footer,
         244,
         CANVAS_HEIGHT - 244
+      )
+    ]
+  });
+}
+
+export function buildVoiceTranscriptContent(transcript: string): string {
+  const trimmed = transcript.trim();
+  if (trimmed.length === 0) {
+    return clampTextContent("Speak now…");
+  }
+  return clampTextContent(trimmed);
+}
+
+export function buildVoicePage(args: VoicePageArgs): RebuildPageContainer {
+  return new RebuildPageContainer({
+    containerTotalNum: 3,
+    textObject: [
+      buildFooterTextContainer(
+        VOICE_TITLE_CONTAINER_ID,
+        VOICE_TITLE_CONTAINER_NAME,
+        args.title,
+        8,
+        40
+      ),
+      buildFooterTextContainer(
+        VOICE_TRANSCRIPT_CONTAINER_ID,
+        VOICE_TRANSCRIPT_CONTAINER_NAME,
+        buildVoiceTranscriptContent(args.transcript),
+        56,
+        176
+      ),
+      buildFooterTextContainer(
+        VOICE_FOOTER_CONTAINER_ID,
+        VOICE_FOOTER_CONTAINER_NAME,
+        args.footer,
+        240,
+        CANVAS_HEIGHT - 240
       )
     ]
   });

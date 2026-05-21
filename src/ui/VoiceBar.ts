@@ -24,6 +24,8 @@ export type VoiceBarDeps = {
   onCommand: (command: VoiceCommand) => void;
   glassesMicAvailable?: boolean;
   openGlassesMic?: (onPcm: (frame: Uint8Array) => void) => Promise<() => void>;
+  onListeningChange?: (active: boolean) => void;
+  onTranscript?: (text: string, speechFinal: boolean) => void;
 };
 
 function mapCommandToken(token: CommandToken): VoiceCommand | null {
@@ -79,8 +81,21 @@ function appendToFocusedField(text: string): boolean {
   return false;
 }
 
-export function mountVoiceBar(deps: VoiceBarDeps): () => void {
-  const { root, onCommand, glassesMicAvailable, openGlassesMic } = deps;
+export type VoiceBarHandle = {
+  destroy: () => void;
+  stop: () => void;
+  isListening: () => boolean;
+};
+
+export function mountVoiceBar(deps: VoiceBarDeps): VoiceBarHandle {
+  const {
+    root,
+    onCommand,
+    glassesMicAvailable,
+    openGlassesMic,
+    onListeningChange,
+    onTranscript
+  } = deps;
 
   root.innerHTML = `
     <section class="voice-bar">
@@ -138,6 +153,7 @@ export function mountVoiceBar(deps: VoiceBarDeps): () => void {
     if (micLabel) {
       micLabel.textContent = active ? "Listening… tap to stop" : "Tap to speak";
     }
+    onListeningChange?.(active);
   };
 
   const stopSession = async (): Promise<void> => {
@@ -178,6 +194,7 @@ export function mountVoiceBar(deps: VoiceBarDeps): () => void {
       if (chunk.transcript) {
         setTranscript(chunk.transcript);
       }
+      onTranscript?.(chunk.transcript, chunk.speechFinal === true);
       if (!chunk.speechFinal) {
         return;
       }
@@ -238,10 +255,18 @@ export function mountVoiceBar(deps: VoiceBarDeps): () => void {
   micBtn?.addEventListener("click", onMicClick);
   setModeUi();
 
-  return () => {
-    destroyed = true;
-    micBtn?.removeEventListener("click", onMicClick);
-    void stopSession();
-    root.replaceChildren();
+  return {
+    destroy: () => {
+      destroyed = true;
+      micBtn?.removeEventListener("click", onMicClick);
+      void stopSession();
+      root.replaceChildren();
+    },
+    stop: () => {
+      if (listening) {
+        void stopSession();
+      }
+    },
+    isListening: () => listening
   };
 }

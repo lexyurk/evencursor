@@ -13,7 +13,11 @@ import {
 } from "./AgentDetail.js";
 import { mountAgentsList, type AgentsListHandle } from "./AgentsList.js";
 import { mountNewAgentDialog } from "./NewAgentDialog.js";
-import { mountVoiceBar, type VoiceCommand } from "./VoiceBar.js";
+import {
+  mountVoiceBar,
+  type VoiceBarHandle,
+  type VoiceCommand
+} from "./VoiceBar.js";
 
 export type AppDeps = {
   root: HTMLElement;
@@ -61,12 +65,13 @@ export function mountApp({ root, keyStore, glasses, onSignOut }: AppDeps): () =>
   let client: CursorClient;
   let agentsHandle: AgentsListHandle | undefined;
   let detailHandle: AgentDetailHandle | undefined;
-  let voiceTeardown: (() => void) | undefined;
+  let voiceHandle: VoiceBarHandle | undefined;
   let selectionTeardown: (() => void) | undefined;
   let dialogTeardown: (() => void) | undefined;
   let selectedAgent: Agent | null = null;
   let repoFilter: string | null = null;
   let glassesMicAvailable = false;
+  let voiceActive = false;
 
   root.innerHTML = `
     <div class="app-shell">
@@ -95,6 +100,9 @@ export function mountApp({ root, keyStore, glasses, onSignOut }: AppDeps): () =>
   ): Promise<() => void> => glasses.openMic(sendPcm);
 
   const syncGlassesList = (agents: Agent[]): void => {
+    if (voiceActive) {
+      return;
+    }
     const filter = repoFilter ?? "";
     const visible = filter
       ? agents.filter((agent) => repoMatches(agent, filter))
@@ -104,6 +112,36 @@ export function mountApp({ root, keyStore, glasses, onSignOut }: AppDeps): () =>
       ? `${visible.length} in ${repoFilter} · click row · back to exit`
       : `${visible.length} agents · click row · back to exit`;
     void glasses.showAgentList(rows, footer);
+  };
+
+  const restoreGlassesView = (): void => {
+    if (detailHandle) {
+      detailHandle.repaintHud();
+      return;
+    }
+    const all = agentsHandle?.getAgents() ?? [];
+    syncGlassesList(all);
+  };
+
+  const handleListeningChange = (active: boolean): void => {
+    voiceActive = active;
+    if (active) {
+      const title = detailHandle ? "Follow-up" : "New agent";
+      void glasses.showVoicePage({
+        title,
+        transcript: "",
+        footer: "Speak · back to cancel"
+      });
+    } else {
+      restoreGlassesView();
+    }
+  };
+
+  const handleTranscriptChange = (text: string): void => {
+    if (!voiceActive) {
+      return;
+    }
+    void glasses.updateVoiceTranscript(text);
   };
 
   const clearDetail = (): void => {
@@ -280,11 +318,13 @@ export function mountApp({ root, keyStore, glasses, onSignOut }: AppDeps): () =>
     const { available } = await glasses.init();
     glassesMicAvailable = available;
 
-    voiceTeardown = mountVoiceBar({
+    voiceHandle = mountVoiceBar({
       root: voiceSlot,
       onCommand: handleCommand,
       glassesMicAvailable,
-      openGlassesMic: (onPcm) => glasses.openMic(onPcm)
+      openGlassesMic: (onPcm) => glasses.openMic(onPcm),
+      onListeningChange: handleListeningChange,
+      onTranscript: handleTranscriptChange
     });
 
     agentsHandle = mountAgentsList({
@@ -302,6 +342,10 @@ export function mountApp({ root, keyStore, glasses, onSignOut }: AppDeps): () =>
 
     selectionTeardown = glasses.onGesture((gesture) => {
       if (gesture.type === "back") {
+        if (voiceHandle?.isListening()) {
+          voiceHandle.stop();
+          return;
+        }
         if (detailHandle) {
           clearDetail();
           const all = agentsHandle?.getAgents() ?? [];
@@ -335,7 +379,7 @@ export function mountApp({ root, keyStore, glasses, onSignOut }: AppDeps): () =>
 
   return () => {
     selectionTeardown?.();
-    voiceTeardown?.();
+    voiceHandle?.destroy();
     dialogTeardown?.();
     agentsHandle?.destroy();
     detailHandle?.destroy();
