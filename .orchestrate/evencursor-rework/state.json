@@ -157,17 +157,18 @@
       "agentId": null,
       "runId": null,
       "parentAgentId": null,
-      "status": "pending",
+      "status": "running",
       "resultStatus": null,
       "handoffPath": null,
-      "startedAt": null,
+      "startedAt": "2026-05-21T05:48:27.750Z",
       "finishedAt": null,
-      "lastUpdate": null,
+      "lastUpdate": "2026-05-21T05:48:27.750Z",
       "note": null,
       "slackTs": null,
       "prNumber": null,
       "failureMode": null,
-      "verification": null
+      "verification": null,
+      "attempts": 1
     },
     {
       "name": "reverify-app-shell",
@@ -250,6 +251,10 @@
     {
       "at": "2026-05-21T05:42:39.026Z",
       "message": "app-shell: verification recorded (verifier-failed) by verifier verify-app-shell"
+    },
+    {
+      "at": "2026-05-21T05:48:27.747Z",
+      "message": "fix-keystore-fallback: model \"composer-2.5\" not in MODEL_CATALOG (spawning anyway). Run `bun cli.ts models` to see known slugs."
     }
   ]
 }
