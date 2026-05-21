@@ -19,7 +19,6 @@ export async function boot(): Promise<void> {
   bindKeyStore(keyStore);
 
   const glasses = new GlassesAdapter();
-  await glasses.init();
 
   let teardown: (() => void) | undefined;
 

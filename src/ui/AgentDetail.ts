@@ -1,6 +1,7 @@
 import { CursorClient } from "../cursor/client.js";
 import type { Agent, Run, RunStatus, RunStreamEvent } from "../cursor/types.js";
 import type { GlassesAdapter } from "../glasses/adapter.js";
+import { escapeHtml, statusBadgeClass } from "./utils.js";
 
 export type AgentDetailDeps = {
   root: HTMLElement;
@@ -11,14 +12,6 @@ export type AgentDetailDeps = {
   onAgentUpdated: (agent: Agent) => void;
 };
 
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
-
 function isTerminalStatus(status: RunStatus): boolean {
   return (
     status === "FINISHED" ||
@@ -26,23 +19,6 @@ function isTerminalStatus(status: RunStatus): boolean {
     status === "CANCELLED" ||
     status === "EXPIRED"
   );
-}
-
-function statusBadgeClass(status: string): string {
-  const upper = status.toUpperCase();
-  if (upper.includes("RUN") || upper === "CREATING") {
-    return "badge-running";
-  }
-  if (upper.includes("FINISH") || upper.includes("DONE")) {
-    return "badge-finished";
-  }
-  if (upper.includes("ERROR") || upper.includes("FAIL")) {
-    return "badge-errored";
-  }
-  if (upper.includes("CANCEL")) {
-    return "badge-cancelled";
-  }
-  return "badge-idle";
 }
 
 export function mountAgentDetail(deps: AgentDetailDeps): () => void {
@@ -269,6 +245,9 @@ export function mountAgentDetail(deps: AgentDetailDeps): () => void {
 
   void (async () => {
     await resolveLatestRun();
+    if (destroyed) {
+      return;
+    }
     render();
     renderHud();
     if (latestRun && !isTerminalStatus(latestRun.status)) {
