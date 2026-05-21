@@ -57,9 +57,16 @@ export class GlassesAdapter {
     }
 
     this.detailStatusLine = args.statusLine;
-    await this.bridge.rebuildPageContainer(
-      new RebuildPageContainer(buildAgentDetailPage(args))
-    );
+    const page = buildAgentDetailPage(args);
+    if (!this.startupInitialized) {
+      await this.bridge.createStartUpPageContainer(
+        new CreateStartUpPageContainer(page)
+      );
+      this.startupInitialized = true;
+      return;
+    }
+
+    await this.bridge.rebuildPageContainer(new RebuildPageContainer(page));
   }
 
   async updateDetailDelta(lastDelta: string): Promise<void> {

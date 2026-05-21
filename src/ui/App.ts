@@ -203,9 +203,10 @@ export function mountApp({ root, keyStore, glasses, onSignOut }: AppDeps): () =>
         if (!selectedAgent) {
           break;
         }
-        void client.archiveAgent(selectedAgent.id).then(() => {
+        const agentId = selectedAgent.id;
+        void client.archiveAgent(agentId).then(() => {
           agentsHandle?.refresh();
-          return client.getAgent(selectedAgent!.id);
+          return client.getAgent(agentId);
         }).then((updated) => {
           selectAgent(updated);
         });
@@ -215,9 +216,10 @@ export function mountApp({ root, keyStore, glasses, onSignOut }: AppDeps): () =>
         if (!selectedAgent) {
           break;
         }
-        void client.unarchiveAgent(selectedAgent.id).then(() => {
+        const agentId = selectedAgent.id;
+        void client.unarchiveAgent(agentId).then(() => {
           agentsHandle?.refresh();
-          return client.getAgent(selectedAgent!.id);
+          return client.getAgent(agentId);
         }).then((updated) => {
           selectAgent(updated);
         });

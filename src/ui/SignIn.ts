@@ -4,6 +4,7 @@ import {
   setDeepgramApiKey
 } from "../cursor/auth.js";
 import type { KeyStore } from "../storage/storage.js";
+import { escapeHtml } from "./utils.js";
 
 const CURSOR_KEY_URL = "https://cursor.com/dashboard/integrations";
 const DEEPGRAM_KEY_URL = "https://console.deepgram.com/project/_/api-keys";
@@ -13,14 +14,6 @@ export type SignInDeps = {
   keyStore: KeyStore;
   onSignedIn: () => void;
 };
-
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
 
 export function mountSignIn(deps: SignInDeps): () => void {
   const { root, onSignedIn } = deps;

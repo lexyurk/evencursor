@@ -2,6 +2,7 @@ import { getDeepgramApiKey } from "../cursor/auth.js";
 import { CursorClient, StreamExpiredError } from "../cursor/client.js";
 import type { Agent, Run, RunStatus, RunStreamEvent } from "../cursor/types.js";
 import type { GlassesAdapter } from "../glasses/adapter.js";
+import { escapeHtml, formatTimeSince, statusBadgeClass } from "./utils.js";
 import { DictationSession } from "../voice/dictation.js";
 
 export type AgentDetailDeps = {
@@ -22,14 +23,6 @@ export type AgentDetailHandle = {
   applyVoiceFollowUp: (prompt: string) => void;
 };
 
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
-
 function isTerminalStatus(status: RunStatus): boolean {
   return (
     status === "FINISHED" ||
@@ -37,41 +30,6 @@ function isTerminalStatus(status: RunStatus): boolean {
     status === "CANCELLED" ||
     status === "EXPIRED"
   );
-}
-
-function statusBadgeClass(status: string): string {
-  const upper = status.toUpperCase();
-  if (upper.includes("RUN") || upper === "CREATING") {
-    return "badge-running";
-  }
-  if (upper.includes("FINISH") || upper.includes("DONE")) {
-    return "badge-finished";
-  }
-  if (upper.includes("ERROR") || upper.includes("FAIL")) {
-    return "badge-errored";
-  }
-  if (upper.includes("CANCEL")) {
-    return "badge-cancelled";
-  }
-  return "badge-idle";
-}
-
-function formatTimeSince(iso: string): string {
-  const ts = Date.parse(iso);
-  if (Number.isNaN(ts)) {
-    return "unknown";
-  }
-  const seconds = Math.max(0, Math.floor((Date.now() - ts) / 1000));
-  if (seconds < 60) {
-    return `${seconds}s ago`;
-  }
-  if (seconds < 3600) {
-    return `${Math.floor(seconds / 60)}m ago`;
-  }
-  if (seconds < 86_400) {
-    return `${Math.floor(seconds / 3600)}h ago`;
-  }
-  return `${Math.floor(seconds / 86_400)}d ago`;
 }
 
 export function mountAgentDetail(deps: AgentDetailDeps): AgentDetailHandle {
