@@ -17,8 +17,6 @@ export type VoiceCommand =
   | { verb: "unarchive" }
   | { verb: "delete" };
 
-export type VoiceBarMode = "command" | "dictate";
-
 export type VoiceIntent =
   | { kind: "command" }
   | { kind: "dictate" }
@@ -107,25 +105,19 @@ export function mountVoiceBar(deps: VoiceBarDeps): VoiceBarHandle {
 
   root.innerHTML = `
     <section class="voice-bar">
-      <div class="voice-mode-toggle" role="group" aria-label="Voice input mode">
-        <button type="button" class="btn btn-ghost voice-mode-btn voice-mode-command" data-mode="command" aria-pressed="true">Command</button>
-        <button type="button" class="btn btn-ghost voice-mode-btn voice-mode-dictate" data-mode="dictate" aria-pressed="false">Dictate</button>
-      </div>
       <button type="button" class="btn-mic" aria-pressed="false" aria-label="Toggle microphone">
         <span class="btn-mic-icon" aria-hidden="true">🎤</span>
         <span class="btn-mic-label">Tap to speak</span>
       </button>
-      <p class="voice-transcript muted" aria-live="polite">Tap mic and say a slash command</p>
+      <p class="voice-transcript muted" aria-live="polite">Tap mic, then say a slash command or click + New agent</p>
     </section>
   `;
 
   const micBtn = root.querySelector<HTMLButtonElement>(".btn-mic");
   const transcriptEl = root.querySelector<HTMLElement>(".voice-transcript");
   const micLabel = root.querySelector<HTMLElement>(".btn-mic-label");
-  const modeButtons = root.querySelectorAll<HTMLButtonElement>(".voice-mode-btn");
 
   let listening = false;
-  let mode: VoiceBarMode = "command";
   let intent: VoiceIntent = { kind: "command" };
   let promptBuffer = "";
   let deepgram: DeepgramLive | undefined;
@@ -141,16 +133,9 @@ export function mountVoiceBar(deps: VoiceBarDeps): VoiceBarHandle {
   };
 
   const setModeUi = (): void => {
-    modeButtons.forEach((button) => {
-      const active = button.dataset.mode === mode;
-      button.setAttribute("aria-pressed", String(active));
-      button.classList.toggle("voice-mode-active", active);
-    });
     if (!listening && transcriptEl) {
       transcriptEl.textContent =
-        mode === "command"
-          ? "Tap mic and say a slash command"
-          : "Dictate mode — focus a text field, then speak";
+        "Tap mic, then say a slash command or click + New agent";
     }
   };
 
@@ -239,7 +224,7 @@ export function mountVoiceBar(deps: VoiceBarDeps): VoiceBarHandle {
         return;
       }
 
-      if (intent.kind === "dictate" || mode === "dictate") {
+      if (intent.kind === "dictate") {
         const appended = appendToFocusedField(chunk.transcript);
         if (!appended) {
           setTranscript(chunk.transcript);
@@ -288,7 +273,7 @@ export function mountVoiceBar(deps: VoiceBarDeps): VoiceBarHandle {
       void stopSession(true);
       return;
     }
-    intent = mode === "dictate" ? { kind: "dictate" } : { kind: "command" };
+    intent = { kind: "command" };
     promptBuffer = "";
     void startSession().catch((err: unknown) => {
       const message = err instanceof Error ? err.message : "Could not start microphone";
@@ -296,16 +281,6 @@ export function mountVoiceBar(deps: VoiceBarDeps): VoiceBarHandle {
       void stopSession(false);
     });
   };
-
-  modeButtons.forEach((button) => {
-    button.addEventListener("click", () => {
-      const next = button.dataset.mode;
-      if (next === "command" || next === "dictate") {
-        mode = next;
-        setModeUi();
-      }
-    });
-  });
 
   micBtn?.addEventListener("click", onMicClick);
   setModeUi();
