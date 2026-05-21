@@ -218,6 +218,29 @@
       "prNumber": 2,
       "failureMode": null,
       "verification": "live-ui-verified"
+    },
+    {
+      "name": "extras-features-and-simulator",
+      "type": "worker",
+      "branch": "orch/evencursor-rework/extras-features-and-simulator",
+      "startingRef": "orch/evencursor-rework/ship-app-shell",
+      "dependsOn": [
+        "ship-app-shell"
+      ],
+      "agentId": null,
+      "runId": null,
+      "parentAgentId": null,
+      "status": "pending",
+      "resultStatus": null,
+      "handoffPath": null,
+      "startedAt": null,
+      "finishedAt": null,
+      "lastUpdate": null,
+      "note": null,
+      "slackTs": null,
+      "prNumber": null,
+      "failureMode": null,
+      "verification": null
     }
   ],
   "attention": [
