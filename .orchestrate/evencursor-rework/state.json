@@ -10,14 +10,14 @@
       "agentId": null,
       "runId": null,
       "parentAgentId": null,
-      "status": "pending",
+      "status": "running",
       "resultStatus": null,
       "handoffPath": null,
-      "startedAt": null,
+      "startedAt": "2026-05-21T05:17:38.572Z",
       "finishedAt": null,
-      "lastUpdate": "2026-05-21T05:17:02.656Z",
+      "lastUpdate": "2026-05-21T05:17:38.572Z",
       "note": "respawned by local-cli (was error; attempts=1)",
-      "attempts": 1,
+      "attempts": 2,
       "slackTs": null,
       "prNumber": null,
       "failureMode": null,
@@ -153,6 +153,10 @@
     {
       "at": "2026-05-21T05:17:03.719Z",
       "message": "scaffold: respawned by local-cli (was error)"
+    },
+    {
+      "at": "2026-05-21T05:17:38.568Z",
+      "message": "scaffold: model \"composer-2.5\" not in MODEL_CATALOG (spawning anyway). Run `bun cli.ts models` to see known slugs."
     }
   ]
 }
