@@ -27,10 +27,41 @@ export type Run = {
   updatedAt: string;
 };
 
+export type ModelParameterValue = {
+  value: string;
+  displayName?: string;
+};
+
+export type ModelParameter = {
+  id: string;
+  displayName?: string;
+  values: ModelParameterValue[];
+};
+
+export type ModelVariant = {
+  params: { id: string; value: string }[];
+  displayName: string;
+  isDefault?: boolean;
+};
+
+export type ModelEntry = {
+  id: string;
+  displayName: string;
+  aliases?: string[];
+  parameters?: ModelParameter[];
+  variants?: ModelVariant[];
+};
+
+export type CursorModelCatalog = {
+  items: ModelEntry[];
+};
+
 export type CreateAgentInput = {
   prompt: string;
   repositoryUrl?: string;
   name?: string;
+  mode?: "agent" | "plan";
+  model?: { id: string; params?: { id: string; value: string }[] };
 };
 
 export type CreateRunInput = {

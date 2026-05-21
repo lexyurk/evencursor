@@ -9,6 +9,9 @@ const VERB_PATTERNS: { pattern: RegExp; verb: string }[] = [
   { pattern: /^refresh\b/i, verb: "refresh" },
   { pattern: /^select\b/i, verb: "select" },
   { pattern: /^open\b/i, verb: "open" },
+  { pattern: /^unarchive\b/i, verb: "unarchive" },
+  { pattern: /^archive\b/i, verb: "archive" },
+  { pattern: /^delete\b/i, verb: "delete" },
 ];
 
 function matchVerb(text: string): { verb: string; consumed: number } | null {

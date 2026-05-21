@@ -312,3 +312,237 @@ body {
   white-space: pre-wrap;
   word-break: break-word;
 }
+
+.app-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.app-link-simulator {
+  color: #8ab4f8;
+  font-size: 0.875rem;
+  text-decoration: none;
+}
+
+.agents-list-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.toggle-archived {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.8125rem;
+  color: #9aa0a6;
+}
+
+.agent-row-archived {
+  opacity: 0.72;
+}
+
+.badge-archived {
+  background: #2f2a1a;
+  color: #fdd663;
+}
+
+.modal-portal {
+  position: relative;
+  z-index: 50;
+}
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  z-index: 100;
+}
+
+.modal-dialog {
+  width: min(100%, 28rem);
+  max-height: 90vh;
+  overflow: auto;
+  border-radius: 16px;
+  border: 1px solid #2a2f36;
+  background: #15181e;
+  padding: 1rem;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+
+.modal-header h2 {
+  margin: 0;
+  font-size: 1.125rem;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.field-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.btn-mic-inline {
+  min-height: 36px;
+  min-width: 36px;
+  padding: 0.25rem 0.5rem;
+  border-radius: 8px;
+  border: 1px solid #3c4043;
+  background: #1a1d23;
+  cursor: pointer;
+}
+
+.dictation-preview {
+  padding: 0.5rem 0.65rem;
+  border-radius: 10px;
+  border: 1px solid #3c4043;
+  background: #1a1d23;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+
+.dictation-preview-actions {
+  display: flex;
+  gap: 0.35rem;
+  margin-top: 0.35rem;
+}
+
+.voice-mode-toggle {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.voice-mode-active {
+  border: 1px solid #8ab4f8;
+  background: #253047;
+}
+
+.run-history {
+  margin-bottom: 1rem;
+}
+
+.run-history h3 {
+  margin: 0 0 0.5rem;
+  font-size: 0.9375rem;
+}
+
+.run-history-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.run-history-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 0.5rem;
+  align-items: center;
+  width: 100%;
+  padding: 0.5rem 0.65rem;
+  border-radius: 10px;
+  border: 1px solid #2a2f36;
+  background: #15181e;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.btn-delete-agent {
+  width: 100%;
+  margin-top: 0.75rem;
+}
+
+.simulator-layout {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  padding: 0.75rem;
+  gap: 0.75rem;
+  max-width: 100%;
+}
+
+.simulator-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.simulator-main {
+  display: grid;
+  grid-template-columns: minmax(280px, 1.2fr) minmax(120px, auto) minmax(180px, 0.8fr);
+  gap: 0.75rem;
+}
+
+.sim-panel h2 {
+  margin: 0 0 0.5rem;
+  font-size: 0.9375rem;
+}
+
+.sim-g2-canvas {
+  width: 100%;
+  max-width: 1152px;
+  height: auto;
+  border: 2px solid #2a2f36;
+  border-radius: 8px;
+  image-rendering: pixelated;
+}
+
+.sim-touchpad {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.sim-touchpad button {
+  min-height: 44px;
+}
+
+.sim-status-log {
+  margin: 0;
+  padding: 0.5rem;
+  min-height: 12rem;
+  border-radius: 10px;
+  background: #0b0d10;
+  border: 1px solid #2a2f36;
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 0.75rem;
+  white-space: pre-wrap;
+}
+
+.sim-phone-panel {
+  border-top: 1px solid #2a2f36;
+  padding-top: 0.75rem;
+}
+
+.sim-phone-app {
+  max-width: 28rem;
+  margin: 0 auto;
+  border: 1px solid #2a2f36;
+  border-radius: 12px;
+  overflow: hidden;
+  min-height: 480px;
+}
+
+.simulator-link {
+  color: #8ab4f8;
+}

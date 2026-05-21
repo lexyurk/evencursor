@@ -25,8 +25,8 @@ export const DETAIL_STATUS_CONTAINER_NAME = "detail-status";
 export const DETAIL_FOOTER_CONTAINER_ID = 3;
 export const DETAIL_FOOTER_CONTAINER_NAME = "detail-footer";
 
-const CANVAS_WIDTH = 576;
-const CANVAS_HEIGHT = 288;
+export const CANVAS_WIDTH = 576;
+export const CANVAS_HEIGHT = 288;
 const MAX_ROW_CHARS = 64;
 const MAX_TEXT_CONTENT = 1000;
 const MAX_CONTAINER_NAME = 16;

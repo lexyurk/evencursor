@@ -5,6 +5,8 @@ import {
   type Agent,
   type CreateAgentInput,
   type CreateRunInput,
+  type CursorModelCatalog,
+  type ModelEntry,
   type Run,
   type RunStatus,
   type RunStreamEvent
@@ -124,6 +126,69 @@ function normalizeAgent(raw: unknown): Agent {
     agent.latestRun = normalizeRun(latestRunRaw, agent.id);
   }
   return agent;
+}
+
+function normalizeModelCatalog(body: unknown): CursorModelCatalog {
+  const o = isRecord(body) ? body : {};
+  const rawItems = Array.isArray(o.items) ? o.items : [];
+  return { items: rawItems.map(normalizeModelEntry) };
+}
+
+function normalizeModelEntry(raw: unknown): ModelEntry {
+  const o = isRecord(raw) ? raw : {};
+  const parameters = Array.isArray(o.parameters)
+    ? o.parameters.map((paramRaw) => {
+        const p = isRecord(paramRaw) ? paramRaw : {};
+        const values = Array.isArray(p.values)
+          ? p.values.map((valueRaw) => {
+              const v = isRecord(valueRaw) ? valueRaw : {};
+              return {
+                value: asString(v.value) ?? "",
+                displayName: asString(v.displayName)
+              };
+            })
+          : [];
+        return {
+          id: asString(p.id) ?? "",
+          displayName: asString(p.displayName),
+          values
+        };
+      })
+    : undefined;
+
+  const variants = Array.isArray(o.variants)
+    ? o.variants.map((variantRaw) => {
+        const v = isRecord(variantRaw) ? variantRaw : {};
+        const params = Array.isArray(v.params)
+          ? v.params
+              .map((paramRaw) => {
+                const p = isRecord(paramRaw) ? paramRaw : {};
+                const id = asString(p.id);
+                const value = asString(p.value);
+                if (!id || !value) {
+                  return null;
+                }
+                return { id, value };
+              })
+              .filter((item): item is { id: string; value: string } => item !== null)
+          : [];
+        return {
+          params,
+          displayName: asString(v.displayName) ?? "",
+          isDefault: v.isDefault === true
+        };
+      })
+    : undefined;
+
+  return {
+    id: asString(o.id) ?? "",
+    displayName: asString(o.displayName) ?? "",
+    aliases: Array.isArray(o.aliases)
+      ? o.aliases.filter((item): item is string => typeof item === "string")
+      : undefined,
+    parameters,
+    variants
+  };
 }
 
 function listItems<T>(
@@ -289,7 +354,12 @@ export class CursorClient {
         return undefined as T;
       }
 
-      return (await response.json()) as T;
+      const raw = await response.text();
+      if (!raw.trim()) {
+        return undefined as T;
+      }
+
+      return JSON.parse(raw) as T;
     });
   }
 
@@ -339,14 +409,55 @@ export class CursorClient {
   async createAgent(
     input: CreateAgentInput
   ): Promise<{ agent: Agent; run: Run }> {
+    const payload: Record<string, unknown> = {
+      prompt: input.prompt
+    };
+    if (input.repositoryUrl) {
+      payload.repositoryUrl = input.repositoryUrl;
+    }
+    if (input.name) {
+      payload.name = input.name;
+    }
+    if (input.mode) {
+      payload.mode = input.mode;
+    }
+    if (input.model) {
+      payload.model = input.model;
+    }
+
     const body = await this.request<Record<string, unknown>>("/v1/agents", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(input)
+      body: JSON.stringify(payload)
     });
     const agent = normalizeAgent(body.agent ?? body);
     const run = normalizeRun(body.run, agent.id);
     return { agent, run };
+  }
+
+  async archiveAgent(id: string): Promise<void> {
+    await this.request<void>(
+      `/v1/agents/${encodeURIComponent(id)}/archive`,
+      { method: "POST" }
+    );
+  }
+
+  async unarchiveAgent(id: string): Promise<void> {
+    await this.request<void>(
+      `/v1/agents/${encodeURIComponent(id)}/unarchive`,
+      { method: "POST" }
+    );
+  }
+
+  async deleteAgent(id: string): Promise<void> {
+    await this.request<void>(`/v1/agents/${encodeURIComponent(id)}`, {
+      method: "DELETE"
+    });
+  }
+
+  async listModels(): Promise<CursorModelCatalog> {
+    const body = await this.request<unknown>("/v1/models");
+    return normalizeModelCatalog(body);
   }
 
   async listRuns(

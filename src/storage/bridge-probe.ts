@@ -3,6 +3,13 @@ import {
   type EvenAppBridge
 } from "@evenrealities/even_hub_sdk";
 
+export const SIM_BRIDGE_GLOBAL = "__EVENCURSOR_SIM_BRIDGE__";
+
+export function getSimBridgeFromWindow(): EvenAppBridge | null {
+  const bridge = (window as unknown as Record<string, unknown>)[SIM_BRIDGE_GLOBAL];
+  return bridge && typeof bridge === "object" ? (bridge as EvenAppBridge) : null;
+}
+
 export const BRIDGE_TIMEOUT_MS = 500;
 export const BRIDGE_PROBE_KEY = "evencursor.bridge-probe";
 export const BRIDGE_PROBE_VALUE = "ok";
@@ -41,6 +48,12 @@ export async function probeStorageBridge(
 }
 
 async function resolveBridgeIfAvailable(): Promise<EvenAppBridge | null> {
+  const simBridge = getSimBridgeFromWindow();
+  if (simBridge) {
+    const ok = await probeStorageBridge(simBridge);
+    return ok ? simBridge : null;
+  }
+
   const bridge = await withBridgeTimeout();
   if (!bridge) {
     return null;

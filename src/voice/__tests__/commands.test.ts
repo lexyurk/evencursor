@@ -44,6 +44,14 @@ describe("parseTranscript", () => {
     });
   });
 
+  it("parses slash archive and slash delete", () => {
+    expect(parseTranscript("slash archive").firstCommand?.verb).toBe("archive");
+    expect(parseTranscript("/delete").firstCommand?.verb).toBe("delete");
+    expect(parseTranscript("slash unarchive").firstCommand?.verb).toBe(
+      "unarchive"
+    );
+  });
+
   it("parses /refresh", () => {
     const result = parseTranscript("/refresh");
     expect(result.firstCommand?.verb).toBe("refresh");

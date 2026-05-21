@@ -12,7 +12,12 @@ export type VoiceCommand =
   | { verb: "select"; index: number }
   | { verb: "open"; repo: string }
   | { verb: "signin" }
-  | { verb: "signout" };
+  | { verb: "signout" }
+  | { verb: "archive" }
+  | { verb: "unarchive" }
+  | { verb: "delete" };
+
+export type VoiceBarMode = "command" | "dictate";
 
 export type VoiceBarDeps = {
   root: HTMLElement;
@@ -44,9 +49,34 @@ function mapCommandToken(token: CommandToken): VoiceCommand | null {
       return { verb: "signin" };
     case "signout":
       return { verb: "signout" };
+    case "archive":
+      return { verb: "archive" };
+    case "unarchive":
+      return { verb: "unarchive" };
+    case "delete":
+      return { verb: "delete" };
     default:
       return null;
   }
+}
+
+function appendToFocusedField(text: string): boolean {
+  const active = document.activeElement;
+  if (
+    active instanceof HTMLTextAreaElement ||
+    active instanceof HTMLInputElement
+  ) {
+    const trimmed = text.trim();
+    if (!trimmed) {
+      return false;
+    }
+    const prefix =
+      active.value.length > 0 && !active.value.endsWith(" ") ? " " : "";
+    active.value = `${active.value}${prefix}${trimmed}`;
+    active.dispatchEvent(new Event("input", { bubbles: true }));
+    return true;
+  }
+  return false;
 }
 
 export function mountVoiceBar(deps: VoiceBarDeps): () => void {
@@ -54,6 +84,10 @@ export function mountVoiceBar(deps: VoiceBarDeps): () => void {
 
   root.innerHTML = `
     <section class="voice-bar">
+      <div class="voice-mode-toggle" role="group" aria-label="Voice input mode">
+        <button type="button" class="btn btn-ghost voice-mode-btn voice-mode-command" data-mode="command" aria-pressed="true">Command</button>
+        <button type="button" class="btn btn-ghost voice-mode-btn voice-mode-dictate" data-mode="dictate" aria-pressed="false">Dictate</button>
+      </div>
       <button type="button" class="btn-mic" aria-pressed="false" aria-label="Toggle microphone">
         <span class="btn-mic-icon" aria-hidden="true">🎤</span>
         <span class="btn-mic-label">Tap to speak</span>
@@ -65,8 +99,10 @@ export function mountVoiceBar(deps: VoiceBarDeps): () => void {
   const micBtn = root.querySelector<HTMLButtonElement>(".btn-mic");
   const transcriptEl = root.querySelector<HTMLElement>(".voice-transcript");
   const micLabel = root.querySelector<HTMLElement>(".btn-mic-label");
+  const modeButtons = root.querySelectorAll<HTMLButtonElement>(".voice-mode-btn");
 
   let listening = false;
+  let mode: VoiceBarMode = "command";
   let deepgram: DeepgramLive | undefined;
   let browserMic: BrowserMic | undefined;
   let stopGlassesMic: (() => void) | undefined;
@@ -76,6 +112,20 @@ export function mountVoiceBar(deps: VoiceBarDeps): () => void {
   const setTranscript = (text: string): void => {
     if (transcriptEl) {
       transcriptEl.textContent = text;
+    }
+  };
+
+  const setModeUi = (): void => {
+    modeButtons.forEach((button) => {
+      const active = button.dataset.mode === mode;
+      button.setAttribute("aria-pressed", String(active));
+      button.classList.toggle("voice-mode-active", active);
+    });
+    if (!listening && transcriptEl) {
+      transcriptEl.textContent =
+        mode === "command"
+          ? "Tap mic and say a slash command"
+          : "Dictate mode — focus a text field, then speak";
     }
   };
 
@@ -100,7 +150,7 @@ export function mountVoiceBar(deps: VoiceBarDeps): () => void {
     await deepgram?.close();
     deepgram = undefined;
     setListeningUi(false);
-    setTranscript("Tap mic and say a slash command");
+    setModeUi();
   };
 
   const startSession = async (): Promise<void> => {
@@ -128,13 +178,23 @@ export function mountVoiceBar(deps: VoiceBarDeps): () => void {
       if (chunk.transcript) {
         setTranscript(chunk.transcript);
       }
-      if (chunk.speechFinal) {
-        const parsed = parseTranscript(chunk.transcript);
-        if (parsed.firstCommand) {
-          const mapped = mapCommandToken(parsed.firstCommand);
-          if (mapped) {
-            onCommand(mapped);
-          }
+      if (!chunk.speechFinal) {
+        return;
+      }
+
+      if (mode === "dictate") {
+        const appended = appendToFocusedField(chunk.transcript);
+        if (!appended) {
+          setTranscript(chunk.transcript);
+        }
+        return;
+      }
+
+      const parsed = parseTranscript(chunk.transcript);
+      if (parsed.firstCommand) {
+        const mapped = mapCommandToken(parsed.firstCommand);
+        if (mapped) {
+          onCommand(mapped);
         }
       }
     });
@@ -147,7 +207,7 @@ export function mountVoiceBar(deps: VoiceBarDeps): () => void {
     }
 
     setListeningUi(true);
-    setTranscript("Listening…");
+    setTranscript(mode === "command" ? "Listening…" : "Dictating…");
   };
 
   const onMicClick = (): void => {
@@ -165,7 +225,18 @@ export function mountVoiceBar(deps: VoiceBarDeps): () => void {
     });
   };
 
+  modeButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      const next = button.dataset.mode;
+      if (next === "command" || next === "dictate") {
+        mode = next;
+        setModeUi();
+      }
+    });
+  });
+
   micBtn?.addEventListener("click", onMicClick);
+  setModeUi();
 
   return () => {
     destroyed = true;
