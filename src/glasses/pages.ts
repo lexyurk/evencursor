@@ -11,6 +11,8 @@ export type AgentDetailPageArgs = {
   statusLine: string;
   lastDelta: string;
   footer: string;
+  repoLabel?: string;
+  activity?: readonly string[];
 };
 
 export type VoicePageArgs = {
@@ -104,13 +106,29 @@ function buildFooterTextContainer(
 
 export function buildDetailStatusContent(
   statusLine: string,
-  lastDelta: string
+  lastDelta: string,
+  opts: { repoLabel?: string; activity?: readonly string[] } = {}
 ): string {
-  const delta = lastDelta.trim();
-  if (delta.length === 0) {
-    return clampTextContent(statusLine);
+  const lines: string[] = [];
+  if (opts.repoLabel && opts.repoLabel.trim().length > 0) {
+    lines.push(`${statusLine}  ·  ${opts.repoLabel.trim()}`);
+  } else {
+    lines.push(statusLine);
   }
-  return clampTextContent(`${statusLine}\n${delta}`);
+
+  const activity = opts.activity ?? [];
+  if (activity.length > 0) {
+    for (const line of activity) {
+      const trimmed = line.trim();
+      if (trimmed.length > 0) {
+        lines.push(trimmed);
+      }
+    }
+  } else if (lastDelta.trim().length > 0) {
+    lines.push(lastDelta.trim());
+  }
+
+  return clampTextContent(lines.join("\n"));
 }
 
 export function buildAgentListPage(
@@ -186,7 +204,10 @@ export function buildAgentDetailPage(
       buildFooterTextContainer(
         DETAIL_STATUS_CONTAINER_ID,
         DETAIL_STATUS_CONTAINER_NAME,
-        buildDetailStatusContent(args.statusLine, args.lastDelta),
+        buildDetailStatusContent(args.statusLine, args.lastDelta, {
+          repoLabel: args.repoLabel,
+          activity: args.activity
+        }),
         56,
         176
       ),
@@ -195,7 +216,8 @@ export function buildAgentDetailPage(
         DETAIL_FOOTER_CONTAINER_NAME,
         args.footer,
         240,
-        CANVAS_HEIGHT - 240
+        CANVAS_HEIGHT - 240,
+        { isEventCapture: 1 }
       )
     ]
   });

@@ -24,6 +24,8 @@ export type AgentDetailHudArgs = {
   statusLine: string;
   lastDelta: string;
   footer: string;
+  repoLabel?: string;
+  activity?: readonly string[];
 };
 
 export type VoiceHudArgs = {
@@ -44,6 +46,7 @@ export class GlassesAdapter {
   private available = false;
   private startupInitialized = false;
   private detailStatusLine = "";
+  private detailRepoLabel: string | undefined = undefined;
 
   async init(): Promise<{ available: boolean }> {
     this.bridge = (await getBridgeIfAvailable()) ?? undefined;
@@ -76,8 +79,30 @@ export class GlassesAdapter {
     }
 
     this.detailStatusLine = args.statusLine;
+    this.detailRepoLabel = args.repoLabel;
     await this.bridge.rebuildPageContainer(
       new RebuildPageContainer(buildAgentDetailPage(args))
+    );
+  }
+
+  async updateDetailActivity(activity: readonly string[]): Promise<void> {
+    if (!this.available || !this.bridge) {
+      this.noOp("updateDetailActivity", activity);
+      return;
+    }
+
+    const content = buildDetailStatusContent(this.detailStatusLine, "", {
+      repoLabel: this.detailRepoLabel,
+      activity
+    });
+    await this.bridge.textContainerUpgrade(
+      new TextContainerUpgrade({
+        containerID: DETAIL_STATUS_CONTAINER_ID,
+        containerName: DETAIL_STATUS_CONTAINER_NAME,
+        contentOffset: 0,
+        contentLength: content.length,
+        content
+      })
     );
   }
 

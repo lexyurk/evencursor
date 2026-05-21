@@ -110,8 +110,16 @@ async function main() {
       const detailPage = pages.buildAgentDetailPage({
         title: "Refactor billing module",
         statusLine: "RUNNING · run 9f3a1c…",
-        lastDelta: "Inspecting StripeAdapter for hidden coupling.",
-        footer: "Click: follow up · Back: list"
+        lastDelta: "",
+        footer: "Click: follow-up · Back: list",
+        repoLabel: "lexyurk/billing",
+        activity: [
+          "[tool] ReadFile src/billing/stripe.ts",
+          "Inspecting StripeAdapter for hidden coupling.",
+          "[tool] Grep StripeClient src/",
+          "Refactoring webhook signature verification.",
+          "Running pytest on billing/test_webhooks.py."
+        ]
       });
       await bridge.rebuildPageContainer(new sdk.RebuildPageContainer(detailPage));
     });
