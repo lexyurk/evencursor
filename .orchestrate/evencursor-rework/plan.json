@@ -1,0 +1,179 @@
+{
+  "$schema": "../../../home/ubuntu/.cursor/plugins/cache/cursor-public/9333/d1cdb88a9eb33cf392395c87e3fd76419fc1010e/skills/orchestrate/schemas/plan.schema.json",
+  "goal": "Rework evencursor (Even Realities G2 plugin) from the overloaded local-CLI bridge into a clean Vite SPA that drives Cursor Cloud Agents via the REST API at https://cursor.com/docs/cloud-agent/api/endpoints, streams voice via Deepgram, and renders to the G2 HUD via @evenrealities/even_hub_sdk. Sign-in = paste-once Cursor API key (no extra OAuth). Recognise slash-commands from the voice stream. Source-of-truth spec is committed at docs/spec.md on the planner branch.",
+  "summary": "rework evencursor onto Cursor Cloud Agents + Deepgram + Even Hub HUD",
+  "dispatcher": { "firstName": "Alex" },
+  "rootSlug": "evencursor-rework",
+  "baseBranch": "cursor/orchestrate-evencursor-rework-d7aa",
+  "prBase": "main",
+  "repoUrl": "https://github.com/lexyurk/evencursor",
+  "selfAgentId": "bc-952c06ce-c152-4ea0-997b-94d5cd4cd7aa",
+  "syncStateToGit": true,
+  "tasks": [
+    {
+      "name": "scaffold",
+      "type": "worker",
+      "model": "composer-2.5-fast",
+      "scopedGoal": "Reset the repo to the clean layout described in docs/spec.md §3 and §4. This task is plumbing only — no business logic in cursor/voice/glasses modules yet; just exported function stubs that throw `not implemented` so downstream workers can fill them in. Concretely:\n\n1. Delete `src/bridge/` (entire directory), `src/hub/main.ts`, `src/hub/even.ts`, `src/hub/speech.ts`, `src/hub/styles.css`, `src/hub/vite-env.d.ts`, `src/shared/protocol.ts`, `src/shared/protocol.test.ts`, `tsconfig.bridge.json`, and the old `index.html`.\n2. Rewrite `package.json` per spec §4: drop `dotenv`, `ws`, `zod`, `tsx`, `@types/ws`; add `@deepgram/sdk` at its latest 3.x or 4.x; keep `@evenrealities/even_hub_sdk`; replace scripts (drop dev:bridge, start:bridge; add dev/build/preview/typecheck/test).\n3. Rewrite `tsconfig.json` for strict-mode browser TS targeting ES2022 + DOM lib; remove the bridge tsconfig.\n4. Rewrite `vite.config.ts` minimally (`defineConfig({ server: { host: true, port: 5173 } })`).\n5. Create the directory tree exactly as in spec §3: `src/main.ts`, `src/ui/{App,SignIn,AgentsList,AgentDetail,VoiceBar}.ts`, `src/ui/styles.css`, `src/cursor/{client,types,auth}.ts`, `src/voice/{deepgram,mic,commands,types}.ts`, `src/glasses/{adapter,pages}.ts`, `src/storage/storage.ts`, `src/shared/events.ts`, `public/app.json`. Each new .ts file MUST compile under `tsc --noEmit` immediately — export the named functions/types listed in §3 and §11 with empty bodies that `throw new Error('not implemented: <name>')`. Type signatures MUST already be filled in based on the API tables in spec §5/§6/§8 so that the downstream module workers don't have to re-design them.\n6. Implement `src/storage/storage.ts` fully (it's small): a `KeyStore` with `getKey(name: string): Promise<string | undefined>` and `setKey(name: string, value: string | undefined): Promise<void>`, preferring the Even Hub bridge via `waitForEvenAppBridge()` with a 500 ms timeout, falling back to `window.localStorage`. This is the only module other than scaffolding that you implement.\n7. Implement `src/shared/events.ts` fully (it's small): a typed `Emitter<TEvents>` with `on/off/emit`, ~30 lines.\n8. Rewrite `index.html` to a minimal `<div id=\"app\"></div>` + `<script type=\"module\" src=\"/src/main.ts\"></script>`.\n9. Rewrite `README.md` to match the new architecture (drop the old API curl examples that referred to the local bridge; add Even Hub install + dev instructions per Even Hub overview docs).\n10. Run `npm install` (or `npm ci` if lockfile is stale) and then `npm run typecheck`. Both MUST succeed. Commit only after they do.\n\nDo NOT pre-fill cursor/voice/glasses module logic — that's the next layer of workers. Your job is the substrate they all build on.\n\nMeasurement note: in `## Measurements` of your handoff, report `typecheck-exit` = 0 and `node-modules-present` = true.",
+      "pathsAllowed": [
+        "package.json",
+        "package-lock.json",
+        "tsconfig.json",
+        "tsconfig.bridge.json",
+        "vite.config.ts",
+        "index.html",
+        "README.md",
+        "src/**",
+        "public/**",
+        ".env.example"
+      ],
+      "pathsForbidden": [
+        "docs/**",
+        ".orchestrate/**"
+      ],
+      "acceptance": [
+        "Old bridge/hub/shared files listed in scopedGoal step 1 are removed.",
+        "`package.json` matches spec §4 (no dotenv/ws/zod/tsx/@types/ws; @deepgram/sdk added; bridge scripts gone).",
+        "Directory tree under `src/` matches spec §3 exactly (every listed file exists).",
+        "`src/storage/storage.ts` and `src/shared/events.ts` are fully implemented; all other new modules contain only typed stubs that throw `not implemented`.",
+        "`npm run typecheck` exits 0.",
+        "`npm install` ran cleanly (`node_modules/` present and `package-lock.json` updated)."
+      ]
+    },
+    {
+      "name": "cursor-client",
+      "type": "worker",
+      "model": "composer-2.5-fast",
+      "dependsOn": ["scaffold"],
+      "scopedGoal": "Fully implement `src/cursor/` against the contract in docs/spec.md §5. Concretely:\n\n1. `src/cursor/types.ts` — typed mirrors of `Agent`, `Run`, `RunStatus`, `RunStreamEvent` (the SSE event union: status / assistant / thinking / tool_call / result / heartbeat / error / done), `CreateAgentInput`, `CreateRunInput`. Strict types, no `any` in exports.\n2. `src/cursor/auth.ts` — `getCursorApiKey()` / `setCursorApiKey(v)` thin wrappers over `KeyStore` from `src/storage/storage.ts`, key name `cursor.apiKey`. Also export `basicAuthHeader(apiKey: string): string` returning `Basic ${btoa(apiKey + \":\")}` (use the browser `btoa`).\n3. `src/cursor/client.ts` — `class CursorClient { constructor(apiKey: string) }` with:\n   - `me(): Promise<{ apiKeyName: string; userEmail: string; createdAt: string }>` — `GET /v1/me`. Used by SignIn to validate the key.\n   - `listAgents(opts?: { limit?: number; cursor?: string; includeArchived?: boolean }): Promise<{ items: Agent[]; nextCursor: string | null }>`.\n   - `getAgent(id: string): Promise<Agent>`.\n   - `createAgent(input: CreateAgentInput): Promise<{ agent: Agent; run: Run }>`.\n   - `listRuns(agentId: string, opts?: { limit?: number; cursor?: string }): Promise<{ items: Run[]; nextCursor: string | null }>`.\n   - `getRun(agentId: string, runId: string): Promise<Run>`.\n   - `createRun(agentId: string, input: CreateRunInput): Promise<{ run: Run }>`.\n   - `cancelRun(agentId: string, runId: string): Promise<{ id: string }>`.\n   - `streamRun(agentId: string, runId: string, opts?: { lastEventId?: string; signal?: AbortSignal }): AsyncIterable<RunStreamEvent>` — open `/v1/agents/{id}/runs/{runId}/stream` with `Accept: text/event-stream` and parse the SSE byte stream manually (fetch + ReadableStream reader, since browser EventSource cannot set Authorization headers). Each yielded event MUST be a discriminated union value matching the `RunStreamEvent` type. Track the most recent `id:` line; on disconnect, the caller may resume by passing that id back. On HTTP 410, throw a typed `StreamExpiredError` so the caller can switch to polling.\n   - `listRepositories(): Promise<{ items: { url: string }[] }>` — `/v1/repositories`, best-effort, marked in JSDoc as rate-limited.\n\nAll request methods MUST throw a typed `CursorApiError` (extends Error with `status: number`, `code?: string`, `message: string`) on non-2xx; parse the JSON body for `error.code`/`error.message` when present. Add a small `withRetry(fn)` helper that retries `429` and `5xx` with exponential backoff (max 3 attempts).\n\n4. Add `src/cursor/__tests__/commands.test.ts`... wait no, this task is cursor only. Add `src/cursor/__tests__/client.test.ts` with vitest covering: basicAuthHeader formatting, error parsing on a mock 401, and SSE-line splitting against a recorded stream fragment. Use `vi.fn()` for `fetch` (no network).\n\n5. Run `npm run typecheck` AND `npm run test -- src/cursor`; both MUST be green. Commit.\n\nDo NOT touch `src/voice/`, `src/glasses/`, or `src/ui/` in this task — workers for those run in parallel on sibling branches.\n\nMeasurement note: in `## Measurements`, report `cursor-test-count` = (number of test cases passing in `src/cursor/__tests__`).",
+      "pathsAllowed": [
+        "src/cursor/**",
+        "package.json",
+        "package-lock.json"
+      ],
+      "pathsForbidden": [
+        "src/voice/**",
+        "src/glasses/**",
+        "src/ui/**",
+        "src/storage/**",
+        "src/shared/**",
+        "src/main.ts",
+        "docs/**",
+        ".orchestrate/**"
+      ],
+      "acceptance": [
+        "`src/cursor/client.ts`, `types.ts`, `auth.ts` are fully implemented per spec §5.",
+        "`streamRun` parses real SSE chunks (no EventSource); throws `StreamExpiredError` on 410.",
+        "`CursorApiError` is exported and thrown on non-2xx.",
+        "`npm run typecheck` exits 0.",
+        "`npm run test -- src/cursor` passes, with at least 3 distinct test cases."
+      ],
+      "verify": "## Setup\n- Run `npm install` in the repo root.\n\n## Automated\n- `npm run typecheck`\n- `npm run test -- src/cursor`\n\n## Manual\n- Read `src/cursor/client.ts` and confirm each method in spec §5 is present with the documented signature.\n- Confirm `streamRun` does NOT use `new EventSource(...)` (must use fetch + reader so the Authorization header can be set).\n\n## Gotchas\n- API key in Basic Auth is `username:` (empty password), so the header value is `Basic ${btoa(apiKey + \":\")}`. A common mistake is `btoa(apiKey)` alone — verify the colon is present."
+    },
+    {
+      "name": "voice-client",
+      "type": "worker",
+      "model": "composer-2.5-fast",
+      "dependsOn": ["scaffold"],
+      "scopedGoal": "Fully implement `src/voice/` against the contract in docs/spec.md §6 and §7. Concretely:\n\n1. `src/voice/types.ts` — `DeepgramTranscript { transcript: string; isFinal: boolean; speechFinal: boolean; words: { word: string; start: number; end: number }[] }`; `CommandToken { kind: 'command'; verb: string; rest: string; raw: string }`; `TextToken { kind: 'text'; text: string }`; `ParsedUtterance { tokens: Array<CommandToken | TextToken>; firstCommand: CommandToken | null }`.\n2. `src/voice/deepgram.ts` — `class DeepgramLive` with constructor `(apiKey: string, opts?: { model?: string; sampleRate?: number })`, methods:\n   - `start(): Promise<void>` — opens `wss://api.deepgram.com/v1/listen?...` (params per spec §6) with `WebSocket` subprotocols `['token', apiKey]` so the key stays out of the URL.\n   - `sendPcm(chunk: ArrayBuffer | Uint8Array): void` — forward audio.\n   - `keepAlive(): void` — start an 8s timer that sends `{type:'KeepAlive'}`.\n   - `close(): Promise<void>` — sends `{type:'CloseStream'}` then closes.\n   - Inherits from a typed `Emitter` (your `src/shared/events.ts`) with events: `open`, `transcript: DeepgramTranscript`, `error: Error`, `close`.\n   - Parses `Results` messages into `DeepgramTranscript` and emits.\n3. `src/voice/mic.ts` — `class BrowserMic` with `start(onPcm: (frame: Int16Array) => void): Promise<void>` and `stop(): Promise<void>`. Uses `getUserMedia({audio:true})`, an `AudioContext({sampleRate:16000})`, and an inline `AudioWorkletProcessor` (registered via Blob URL) that downsamples to 16k mono PCM Int16 and posts frames to the main thread. Make sure the worklet code works when bundled by Vite (don't `import` it; build the worklet source as a string literal and `Blob`-load it).\n4. `src/voice/commands.ts` — `parseTranscript(text: string): ParsedUtterance` implementing every row of spec §7:\n   - tolerate the literal word `slash` (`'slash new fix it'` → command `new`),\n   - case-insensitive verb,\n   - multi-word verbs `follow up` and `sign in` collapse to `followup` / `signin`,\n   - rest-of-line is `rest`,\n   - tokens-after-command go into `rest`, tokens-before become a leading TextToken.\n5. Tests `src/voice/__tests__/commands.test.ts` covering: every row of the table in spec §7, `slash`-instead-of-`/` variants, mixed case, and trailing whitespace. Aim for ≥10 cases.\n6. Tests `src/voice/__tests__/deepgram.test.ts` using `vi.stubGlobal('WebSocket', …)` covering: subprotocol passed correctly, `sendPcm` forwards bytes, `Results` JSON parses into a `transcript` event.\n7. Run `npm run typecheck` and `npm run test -- src/voice`; both MUST pass. Commit.\n\nDo NOT touch `src/cursor/`, `src/glasses/`, or `src/ui/`.\n\nMeasurement note: report `voice-test-count` in `## Measurements`.",
+      "pathsAllowed": [
+        "src/voice/**",
+        "package.json",
+        "package-lock.json"
+      ],
+      "pathsForbidden": [
+        "src/cursor/**",
+        "src/glasses/**",
+        "src/ui/**",
+        "src/storage/**",
+        "src/shared/**",
+        "src/main.ts",
+        "docs/**",
+        ".orchestrate/**"
+      ],
+      "acceptance": [
+        "`src/voice/deepgram.ts`, `mic.ts`, `commands.ts`, `types.ts` are fully implemented per spec §6 and §7.",
+        "Deepgram WebSocket uses subprotocol auth (`['token', apiKey]`); API key never appears in the URL string.",
+        "`parseTranscript` handles `/new`, `slash new`, `/follow up`, `/sign in`, `/cancel`, `/refresh`, `/select N`, `/open`, and free text.",
+        "`npm run typecheck` exits 0.",
+        "`npm run test -- src/voice` passes, with at least 10 commands test cases and 3 deepgram test cases."
+      ],
+      "verify": "## Setup\n- `npm install`\n\n## Automated\n- `npm run typecheck`\n- `npm run test -- src/voice`\n\n## Manual\n- Read `src/voice/deepgram.ts` and confirm the `new WebSocket(url, ['token', apiKey])` pattern is used (NOT `?api_key=` in the URL).\n- Read `src/voice/commands.ts` against spec §7 table and verify each row has a test case.\n\n## Gotchas\n- Browser AudioContext input is Float32 at the device sample rate. Resample to 16 kHz Int16 explicitly; trusting `sampleRate:16000` on the context alone has known browser bugs (Safari ignores it)."
+    },
+    {
+      "name": "glasses-client",
+      "type": "worker",
+      "model": "composer-2.5-fast",
+      "dependsOn": ["scaffold"],
+      "scopedGoal": "Fully implement `src/glasses/` against docs/spec.md §8 and the Even Hub SDK README at `node_modules/@evenrealities/even_hub_sdk/README.md`. Concretely:\n\n1. `src/glasses/pages.ts` — pure functions that build `CreateStartUpPageContainer` / `RebuildPageContainer` payloads for the two pages in spec §8 (`buildAgentListPage(rows: string[], footer: string)` and `buildAgentDetailPage({ title, statusLine, lastDelta, footer })`). All sizes/positions must fit the 576×288 canvas. The list container is the one with `isEventCapture: 1`. Text containers MUST honour the 16-char `containerName` and 1000-char `content` limits documented in the SDK.\n2. `src/glasses/adapter.ts` — `class GlassesAdapter` with:\n   - `init(): Promise<{ available: boolean }>` — calls `waitForEvenAppBridge()` with a 500 ms timeout; if no bridge, sets `available=false` and turns every subsequent call into a logged no-op (`console.debug('[glasses no-op]', …)`). This is what lets the app run in a normal browser for dev preview.\n   - `showAgentList(rows: string[], footer: string): Promise<void>` — on first call uses `createStartUpPageContainer`, afterwards uses `rebuildPageContainer`. Internal `initialized` flag.\n   - `showAgentDetail(args: { title; statusLine; lastDelta; footer }): Promise<void>` — `rebuildPageContainer`.\n   - `updateDetailDelta(lastDelta: string): Promise<void>` — `textContainerUpgrade` on the middle text container only (avoid full rebuilds on every assistant token).\n   - `onSelection(cb: (index: number, name: string) => void): () => void` — wraps `bridge.onEvenHubEvent`, filters for `listEvent`, forwards `(currentSelectItemIndex, currentSelectItemName)`.\n   - `openMic(onPcm: (frame: Uint8Array) => void): Promise<() => void>` — `audioControl(true)`, subscribes to `audioEvent`, returns an unsubscriber that also calls `audioControl(false)`.\n   - `shutdown(): Promise<void>` — `shutDownPageContainer(0)`.\n3. Tests `src/glasses/__tests__/adapter.test.ts` using vitest with `vi.stubGlobal` for `window` and a fake bridge object. Verify: no-op when bridge missing, `showAgentList` uses createStartUpPageContainer first then rebuildPageContainer second, `updateDetailDelta` calls `textContainerUpgrade` with the middle containerID.\n4. Tests `src/glasses/__tests__/pages.test.ts` verifying coordinates and limits (containerTotalNum ≤ 12, no text content > 1000 chars, list rows truncated to 64 chars).\n5. Run `npm run typecheck` and `npm run test -- src/glasses`; both MUST pass. Commit.\n\nDo NOT touch `src/cursor/`, `src/voice/`, or `src/ui/`.\n\nMeasurement note: report `glasses-test-count` in `## Measurements`.",
+      "pathsAllowed": [
+        "src/glasses/**",
+        "package.json",
+        "package-lock.json"
+      ],
+      "pathsForbidden": [
+        "src/cursor/**",
+        "src/voice/**",
+        "src/ui/**",
+        "src/storage/**",
+        "src/shared/**",
+        "src/main.ts",
+        "docs/**",
+        ".orchestrate/**"
+      ],
+      "acceptance": [
+        "`src/glasses/adapter.ts` and `pages.ts` are fully implemented per spec §8.",
+        "`init()` returns `{ available: false }` when no Even Hub bridge is present (browser dev mode) and every method silently no-ops afterwards.",
+        "`showAgentList` uses `createStartUpPageContainer` on first call and `rebuildPageContainer` thereafter.",
+        "All text container `content` payloads are within 1000 chars; container counts ≤12; text objects ≤8.",
+        "`npm run typecheck` exits 0.",
+        "`npm run test -- src/glasses` passes."
+      ]
+    },
+    {
+      "name": "app-shell",
+      "type": "worker",
+      "model": "composer-2.5-fast",
+      "dependsOn": ["cursor-client", "voice-client", "glasses-client"],
+      "openPR": true,
+      "scopedGoal": "Merge the three module branches and build the actual UI on top, then open a PR against `main`. Concretely:\n\n1. Your starting branch is `scaffold`'s output. Merge the three sibling branches into it in this order (the upstream handoffs in your prompt will tell you their actual branch names — use those, not placeholders):\n   - `cursor-client` branch\n   - `voice-client` branch\n   - `glasses-client` branch\n   Resolve conflicts by accepting both sides whenever they touch disjoint paths. If they conflict on `package.json`, take the superset of dependencies. After all three merges, run `npm install && npm run typecheck && npm run test` to confirm nothing regressed.\n2. Implement `src/main.ts` as the entry: instantiate `KeyStore`, `GlassesAdapter`, check for stored API keys, and mount either `SignIn` or `App` into `#app`.\n3. Implement `src/ui/SignIn.ts`: two paste fields (Cursor API key, Deepgram API key), a \"Validate & save\" button that calls `CursorClient#me()` to verify the Cursor key (shows the resolved email on success), persists both keys via `KeyStore`, then dispatches a `signedIn` event so `App` can swap views. Include a deep link `https://cursor.com/dashboard/integrations` for the Cursor key and `https://console.deepgram.com/project/_/api-keys` for Deepgram.\n4. Implement `src/ui/App.ts` (top-level component): renders the `VoiceBar` at the top, the `AgentsList` in the middle, and either nothing or `AgentDetail` at the bottom depending on selection. Wires the `GlassesAdapter` so that:\n   - When the agents list refreshes, `glasses.showAgentList(...)` is called.\n   - When an agent is selected (via UI click OR `glasses.onSelection`), `glasses.showAgentDetail(...)` is called and the SSE stream is attached, with assistant deltas piped to `glasses.updateDetailDelta`.\n   - When `/sign out` (or a dedicated button) is triggered, the keys are cleared and `SignIn` is mounted.\n5. Implement `src/ui/AgentsList.ts`: pulls `CursorClient#listAgents`, renders a list of `STATUS · NAME · time-since-update`, polls every 10 s (debounce). Click → select.\n6. Implement `src/ui/AgentDetail.ts`: shows agent metadata + the most recent run's status, a follow-up textarea, a Cancel button (disabled unless run status is non-terminal), and a tailing log of assistant deltas from `streamRun`. On status `FINISHED`/`ERRORED`/`CANCELLED`, close the stream.\n7. Implement `src/ui/VoiceBar.ts`: a big mic button. On press:\n   - acquire mic via `BrowserMic` (preferred) or `GlassesAdapter#openMic` if `available`,\n   - open `DeepgramLive`, pipe PCM to it,\n   - show the live interim transcript inline,\n   - on `speech_final` flush to `parseTranscript`, dispatch the resulting command (`/new`, `/cancel`, `/followup`, `/refresh`, `/select`, `/open`, `/signin`) via the `App`'s command bus.\n   Pressing the mic again stops the stream.\n8. `src/ui/styles.css`: clean, glanceable mobile-first layout, dark theme, big tap targets (≥48 px), system font stack. Status badges colour-coded.\n9. Update `public/app.json` to a minimal Even Hub plugin manifest (`name`, `version`, `entry: \"index.html\"`).\n10. `npm run typecheck && npm run build && npm run test` — ALL three MUST be green.\n11. Open a draft PR against `main`. Title: `Rework evencursor onto Cursor Cloud Agents + Deepgram + Even Hub HUD`. Body: short summary that links to the new docs/spec.md, lists the merged module branches, includes a screenshot of `npm run build` output, and a checklist matching docs/spec.md §9.\n\nDo NOT regress test counts from any of the three module workers — re-run their tests after each merge and after your UI changes.\n\nMeasurement note: report `final-typecheck-exit` = 0, `final-build-exit` = 0, `total-test-count` (vitest's reported test count after `npm run test`) in `## Measurements`.",
+      "pathsAllowed": [
+        "src/**",
+        "public/**",
+        "index.html",
+        "package.json",
+        "package-lock.json",
+        "tsconfig.json",
+        "vite.config.ts",
+        "README.md"
+      ],
+      "pathsForbidden": [
+        "docs/**",
+        ".orchestrate/**"
+      ],
+      "acceptance": [
+        "`scaffold`, `cursor-client`, `voice-client`, `glasses-client` branches are all merged into the app-shell branch.",
+        "Sign-In screen validates the Cursor API key with `/v1/me` before persisting.",
+        "Agents list page calls `CursorClient#listAgents` and renders results; polls every 10 s.",
+        "Selecting an agent opens detail view and attaches to `streamRun` SSE.",
+        "Voice bar streams mic audio to Deepgram, displays interim transcripts, and dispatches parsed slash-commands.",
+        "GlassesAdapter mirrors agents-list and agent-detail to the HUD when available, silently no-ops in browser dev mode.",
+        "`npm run typecheck`, `npm run build`, and `npm run test` all exit 0.",
+        "A draft PR is opened against `main` with the rework summary."
+      ],
+      "verify": "## Setup\n- `npm install`\n\n## Automated\n- `npm run typecheck`\n- `npm run test`\n- `npm run build`\n\n## Manual\n- `npm run dev`, open the printed URL; SignIn screen appears.\n- Paste a Cursor API key (validates) and a Deepgram key; AgentsList renders.\n- Click an agent; AgentDetail opens; SSE stream connects (visible in DevTools Network tab as long-lived `text/event-stream`).\n- Press the mic button; speak `slash refresh`; the agents list refreshes.\n\n## Gotchas\n- `streamRun` requires the Authorization header, so the EventSource API won't work; the worker should have already used fetch+reader in `src/cursor/client.ts`.\n- Even Hub WebView may inject `window.evenAppBridge` asynchronously; `init()` must wait briefly before declaring unavailable."
+    },
+    {
+      "name": "verify-app-shell",
+      "type": "verifier",
+      "verifies": "app-shell",
+      "model": "claude-opus-4-7",
+      "scopedGoal": "Verify the rework against every acceptance criterion of `app-shell`. Run `npm install && npm run typecheck && npm run test && npm run build` in a fresh checkout of the app-shell branch and capture exit codes. Then exercise the UI under `npm run dev`: confirm SignIn validates with a fake key (mock the `/v1/me` response by patching `CursorClient` if a real key isn't available — but PREFER using a real key from the env var `CURSOR_API_KEY` if it is set in your VM, since this is your own org's key). Confirm that `parseTranscript` round-trips through `VoiceBar`'s command bus by simulating a `speech_final` event (you can dispatch one in DevTools or write a tiny test harness page). Read the opened PR and confirm body + title match the spec. File your verdict per the orchestrate verifier prompt template.",
+      "acceptance": [
+        "Verification section contains exit-code evidence for typecheck, test, build.",
+        "Verification section names which acceptance criteria in `app-shell` were met live vs unit-tested vs blocked.",
+        "PR exists on `main` with the required title."
+      ]
+    }
+  ]
+}
