@@ -1,28 +1,5 @@
 {
-  "package_id": "com.lexyurk.evencursor",
-  "edition": "202601",
   "name": "evencursor",
   "version": "0.1.0",
-  "min_app_version": "2.0.0",
-  "min_sdk_version": "0.0.10",
-  "entrypoint": "index.html",
-  "permissions": [
-    {
-      "name": "network",
-      "desc": "Connects to Cursor Cloud Agents and Deepgram live transcription.",
-      "whitelist": [
-        "https://api.cursor.com",
-        "https://api.deepgram.com"
-      ]
-    },
-    {
-      "name": "g2-microphone",
-      "desc": "Captures voice commands on Even Realities G2 glasses."
-    },
-    {
-      "name": "phone-microphone",
-      "desc": "Captures voice commands when previewing in the Even Hub simulator or phone browser."
-    }
-  ],
-  "supported_languages": ["en"]
+  "entry": "index.html"
 }

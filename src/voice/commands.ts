@@ -2,6 +2,7 @@ import type { CommandToken, ParsedUtterance, TextToken } from "./types.js";
 
 const VERB_PATTERNS: { pattern: RegExp; verb: string }[] = [
   { pattern: /^follow\s+up\b/i, verb: "followup" },
+  { pattern: /^sign\s+out\b/i, verb: "signout" },
   { pattern: /^sign\s+in\b/i, verb: "signin" },
   { pattern: /^new\b/i, verb: "new" },
   { pattern: /^cancel\b/i, verb: "cancel" },
