@@ -517,6 +517,11 @@ body {
   min-height: 44px;
 }
 
+.sim-touchpad-hint {
+  margin: 0 0 0.5rem;
+  font-size: 0.75rem;
+}
+
 .sim-status-log {
   margin: 0;
   padding: 0.5rem;

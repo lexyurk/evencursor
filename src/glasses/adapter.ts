@@ -1,8 +1,10 @@
 import {
   CreateStartUpPageContainer,
+  OsEventTypeList,
   RebuildPageContainer,
   TextContainerUpgrade,
-  type EvenAppBridge
+  type EvenAppBridge,
+  type EvenHubEvent
 } from "@evenrealities/even_hub_sdk";
 import { getBridgeIfAvailable } from "../storage/bridge-probe.js";
 import {
@@ -19,6 +21,13 @@ export type AgentDetailHudArgs = {
   lastDelta: string;
   footer: string;
 };
+
+export type GlassesGesture =
+  | { type: "click"; index: number; name: string }
+  | { type: "double-click"; index: number; name: string }
+  | { type: "scroll-up"; index: number; name: string }
+  | { type: "scroll-down"; index: number; name: string }
+  | { type: "back" };
 
 export class GlassesAdapter {
   private bridge: EvenAppBridge | undefined;
@@ -81,24 +90,24 @@ export class GlassesAdapter {
   }
 
   onSelection(cb: (index: number, name: string) => void): () => void {
+    return this.onGesture((gesture) => {
+      if (gesture.type === "click") {
+        cb(gesture.index, gesture.name);
+      }
+    });
+  }
+
+  onGesture(cb: (gesture: GlassesGesture) => void): () => void {
     if (!this.available || !this.bridge) {
-      this.noOp("onSelection");
+      this.noOp("onGesture");
       return () => {};
     }
 
     return this.bridge.onEvenHubEvent((event) => {
-      const listEvent = event.listEvent;
-      if (!listEvent) {
-        return;
+      const gesture = parseGesture(event);
+      if (gesture) {
+        cb(gesture);
       }
-
-      const index = listEvent.currentSelectItemIndex ?? -1;
-      const name = listEvent.currentSelectItemName ?? "";
-      if (index < 0) {
-        return;
-      }
-
-      cb(index, name);
     });
   }
 
@@ -133,5 +142,37 @@ export class GlassesAdapter {
 
   private noOp(method: string, ...args: unknown[]): void {
     console.debug("[glasses no-op]", method, ...args);
+  }
+}
+
+function parseGesture(event: EvenHubEvent): GlassesGesture | null {
+  const sys = event.sysEvent;
+  if (sys && sys.eventType === OsEventTypeList.FOREGROUND_EXIT_EVENT) {
+    return { type: "back" };
+  }
+
+  const list = event.listEvent;
+  if (!list) {
+    return null;
+  }
+
+  const index = list.currentSelectItemIndex ?? -1;
+  const name = list.currentSelectItemName ?? "";
+
+  switch (list.eventType) {
+    case OsEventTypeList.CLICK_EVENT:
+      if (index < 0) return null;
+      return { type: "click", index, name };
+    case OsEventTypeList.DOUBLE_CLICK_EVENT:
+      return { type: "double-click", index, name };
+    case OsEventTypeList.SCROLL_TOP_EVENT:
+      return { type: "scroll-up", index, name };
+    case OsEventTypeList.SCROLL_BOTTOM_EVENT:
+      return { type: "scroll-down", index, name };
+    default:
+      if (list.eventType === undefined && index >= 0) {
+        return { type: "click", index, name };
+      }
+      return null;
   }
 }

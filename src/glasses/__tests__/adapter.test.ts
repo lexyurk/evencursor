@@ -1,3 +1,4 @@
+import { OsEventTypeList } from "@evenrealities/even_hub_sdk";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   DETAIL_STATUS_CONTAINER_ID,
@@ -16,7 +17,9 @@ const { bridge, bridgeStorage, waitForEvenAppBridge } = vi.hoisted(() => {
     createStartUpPageContainer: vi.fn(async () => 0),
     rebuildPageContainer: vi.fn(async () => true),
     textContainerUpgrade: vi.fn(async () => true),
-    onEvenHubEvent: vi.fn(() => () => {}),
+    onEvenHubEvent: vi.fn(
+      (_listener: (event: Record<string, unknown>) => void) => () => {}
+    ),
     audioControl: vi.fn(async () => true),
     shutDownPageContainer: vi.fn(async () => true)
   };
@@ -134,6 +137,95 @@ describe("GlassesAdapter", () => {
     );
 
     debugSpy.mockRestore();
+  });
+
+  it("routes list events through onGesture by eventType", async () => {
+    const handlers: Array<(event: Record<string, unknown>) => void> = [];
+    bridge.onEvenHubEvent.mockImplementation(
+      (listener: (event: Record<string, unknown>) => void) => {
+        handlers.push(listener);
+        return () => {};
+      }
+    );
+
+    const adapter = new GlassesAdapter();
+    await adapter.init();
+
+    const gestures: Array<{ type: string }> = [];
+    adapter.onGesture((gesture) => {
+      gestures.push(gesture);
+    });
+
+    expect(handlers).toHaveLength(1);
+    const emit = handlers[0]!;
+
+    emit({
+      listEvent: {
+        currentSelectItemIndex: 0,
+        currentSelectItemName: "agent",
+        eventType: OsEventTypeList.SCROLL_TOP_EVENT
+      }
+    });
+    emit({
+      listEvent: {
+        currentSelectItemIndex: 1,
+        currentSelectItemName: "agent",
+        eventType: OsEventTypeList.CLICK_EVENT
+      }
+    });
+    emit({
+      listEvent: {
+        currentSelectItemIndex: 2,
+        currentSelectItemName: "agent",
+        eventType: OsEventTypeList.DOUBLE_CLICK_EVENT
+      }
+    });
+    emit({
+      sysEvent: { eventType: OsEventTypeList.FOREGROUND_EXIT_EVENT }
+    });
+
+    expect(gestures.map((g) => g.type)).toEqual([
+      "scroll-up",
+      "click",
+      "double-click",
+      "back"
+    ]);
+  });
+
+  it("onSelection still fires only for clicks (back-compat)", async () => {
+    const handlers: Array<(event: Record<string, unknown>) => void> = [];
+    bridge.onEvenHubEvent.mockImplementation(
+      (listener: (event: Record<string, unknown>) => void) => {
+        handlers.push(listener);
+        return () => {};
+      }
+    );
+
+    const adapter = new GlassesAdapter();
+    await adapter.init();
+
+    const clicks: number[] = [];
+    adapter.onSelection((index) => {
+      clicks.push(index);
+    });
+
+    const emit = handlers[0]!;
+    emit({
+      listEvent: {
+        currentSelectItemIndex: 0,
+        currentSelectItemName: "a",
+        eventType: OsEventTypeList.SCROLL_BOTTOM_EVENT
+      }
+    });
+    emit({
+      listEvent: {
+        currentSelectItemIndex: 3,
+        currentSelectItemName: "b",
+        eventType: OsEventTypeList.CLICK_EVENT
+      }
+    });
+
+    expect(clicks).toEqual([3]);
   });
 
   it("updates the middle detail container via textContainerUpgrade", async () => {

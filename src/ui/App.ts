@@ -297,13 +297,26 @@ export function mountApp({ root, keyStore, glasses, onSignOut }: AppDeps): () =>
       }
     });
 
-    selectionTeardown = glasses.onSelection((index) => {
-      const agents = agentsHandle?.getAgents() ?? [];
+    selectionTeardown = glasses.onGesture((gesture) => {
+      if (gesture.type === "back") {
+        if (detailHandle) {
+          clearDetail();
+          const all = agentsHandle?.getAgents() ?? [];
+          syncGlassesList(all);
+        }
+        return;
+      }
+
+      if (gesture.type !== "click") {
+        return;
+      }
+
+      const all = agentsHandle?.getAgents() ?? [];
       const filter = repoFilter ?? "";
       const visible = filter
-        ? agents.filter((agent) => repoMatches(agent, filter))
-        : agents;
-      const agent = visible[index];
+        ? all.filter((agent) => repoMatches(agent, filter))
+        : all;
+      const agent = visible[gesture.index];
       if (agent) {
         selectAgent(agent);
       }

@@ -2,6 +2,7 @@ import {
   CreateStartUpPageContainer,
   DeviceInfo,
   DeviceModel,
+  OsEventTypeList,
   RebuildPageContainer,
   StartUpPageCreateResult,
   TextContainerUpgrade,
@@ -26,7 +27,7 @@ export type SimulatorBridgeEvents = {
 export type ListEventPayload = {
   currentSelectItemIndex: number;
   currentSelectItemName: string;
-  evenHubEvent?: string;
+  eventType?: OsEventTypeList;
 };
 
 export class SimulatorBridge {
@@ -137,10 +138,21 @@ export class SimulatorBridge {
       listEvent: {
         currentSelectItemIndex: payload.currentSelectItemIndex,
         currentSelectItemName: payload.currentSelectItemName,
-        evenHubEvent: payload.evenHubEvent ?? "SELECT"
+        eventType: payload.eventType ?? OsEventTypeList.CLICK_EVENT
       }
     };
 
+    for (const listener of this.hubListeners) {
+      listener(event);
+    }
+  }
+
+  dispatchBack(): void {
+    const event = {
+      sysEvent: {
+        eventType: OsEventTypeList.FOREGROUND_EXIT_EVENT
+      }
+    };
     for (const listener of this.hubListeners) {
       listener(event);
     }
@@ -162,7 +174,10 @@ export class SimulatorBridge {
     this.dispatchListEvent({
       currentSelectItemIndex: this.selectedIndex,
       currentSelectItemName: info.rows[this.selectedIndex] ?? "",
-      evenHubEvent: "SCROLL"
+      eventType:
+        delta < 0
+          ? OsEventTypeList.SCROLL_TOP_EVENT
+          : OsEventTypeList.SCROLL_BOTTOM_EVENT
     });
   }
 
@@ -177,7 +192,20 @@ export class SimulatorBridge {
     this.dispatchListEvent({
       currentSelectItemIndex: this.selectedIndex,
       currentSelectItemName: info.rows[this.selectedIndex] ?? "",
-      evenHubEvent: "SELECT"
+      eventType: OsEventTypeList.CLICK_EVENT
+    });
+  }
+
+  doubleClickSelect(): void {
+    if (!this.currentPage) {
+      return;
+    }
+    const info = describeG2Page(this.currentPage);
+    const name = info.kind === "list" ? info.rows[this.selectedIndex] ?? "" : "";
+    this.dispatchListEvent({
+      currentSelectItemIndex: this.selectedIndex,
+      currentSelectItemName: name,
+      eventType: OsEventTypeList.DOUBLE_CLICK_EVENT
     });
   }
 
