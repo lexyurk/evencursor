@@ -128,6 +128,23 @@ async function main() {
       path: path.join(ART, "hud_detail.png")
     });
 
+    // Action menu (a list page with predefined items)
+    await page.evaluate(async () => {
+      const sdk = await import("/node_modules/@evenrealities/even_hub_sdk/dist/index.js");
+      const pages = await import("/src/glasses/pages.ts");
+      const bridge = window.__EVENCURSOR_SIM_BRIDGE__;
+
+      const menuPage = pages.buildAgentListPage(
+        ["Cancel run", "Archive", "Delete agent", "Back"],
+        "Refactor billing module · click action · back cancels"
+      );
+      await bridge.rebuildPageContainer(new sdk.RebuildPageContainer(menuPage));
+    });
+    await page.waitForTimeout(200);
+    await page.locator(".sim-g2-canvas").screenshot({
+      path: path.join(ART, "hud_actions.png")
+    });
+
     // Whole-simulator capture (canvas + touchpad + status panel)
     await page.locator(".simulator-main").screenshot({
       path: path.join(ART, "hud_simulator_overview.png")

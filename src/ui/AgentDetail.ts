@@ -121,7 +121,7 @@ export function mountAgentDetail(deps: AgentDetailDeps): AgentDetailHandle {
       title: agent.name || "Agent",
       statusLine,
       lastDelta: activity[activity.length - 1] ?? "",
-      footer: "Click: follow-up · Back: list",
+      footer: "Click: follow-up · Double: actions · Back: list",
       repoLabel: repoLabel(),
       activity
     });

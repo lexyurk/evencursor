@@ -72,6 +72,7 @@ export function mountApp({ root, keyStore, glasses, onSignOut }: AppDeps): () =>
   let repoFilter: string | null = null;
   let glassesMicAvailable = false;
   let voiceActive = false;
+  let actionMenuActive = false;
 
   root.innerHTML = `
     <div class="app-shell">
@@ -100,7 +101,7 @@ export function mountApp({ root, keyStore, glasses, onSignOut }: AppDeps): () =>
   ): Promise<() => void> => glasses.openMic(sendPcm);
 
   const syncGlassesList = (agents: Agent[]): void => {
-    if (voiceActive) {
+    if (voiceActive || actionMenuActive) {
       return;
     }
     const filter = repoFilter ?? "";
@@ -115,12 +116,107 @@ export function mountApp({ root, keyStore, glasses, onSignOut }: AppDeps): () =>
   };
 
   const restoreGlassesView = (): void => {
+    if (actionMenuActive) {
+      showActionMenu();
+      return;
+    }
     if (detailHandle) {
       detailHandle.repaintHud();
       return;
     }
     const all = agentsHandle?.getAgents() ?? [];
     syncGlassesList(all);
+  };
+
+  const ACTION_MENU_LABELS = {
+    cancel: "Cancel run",
+    archive: "Archive",
+    unarchive: "Unarchive",
+    delete: "Delete agent",
+    back: "Back"
+  } as const;
+
+  type ActionMenuItem = keyof typeof ACTION_MENU_LABELS;
+
+  const getActionMenuItems = (): ActionMenuItem[] => {
+    if (!selectedAgent) {
+      return ["back"];
+    }
+    const items: ActionMenuItem[] = [];
+    const run = selectedAgent.latestRun;
+    const isActive =
+      run !== undefined &&
+      run.status !== "FINISHED" &&
+      run.status !== "ERRORED" &&
+      run.status !== "CANCELLED" &&
+      run.status !== "EXPIRED";
+    if (isActive) {
+      items.push("cancel");
+    }
+    items.push(selectedAgent.archived ? "unarchive" : "archive");
+    items.push("delete");
+    items.push("back");
+    return items;
+  };
+
+  const showActionMenu = (): void => {
+    if (!selectedAgent) {
+      return;
+    }
+    actionMenuActive = true;
+    const items = getActionMenuItems();
+    const rows = items.map((item) => ACTION_MENU_LABELS[item]);
+    void glasses.showAgentList(
+      rows,
+      `${selectedAgent.name || "Agent"} · click action · back cancels`
+    );
+  };
+
+  const closeActionMenu = (): void => {
+    actionMenuActive = false;
+    restoreGlassesView();
+  };
+
+  const runActionMenuItem = async (item: ActionMenuItem): Promise<void> => {
+    if (!client || !selectedAgent) {
+      closeActionMenu();
+      return;
+    }
+    const agent = selectedAgent;
+    actionMenuActive = false;
+    try {
+      switch (item) {
+        case "cancel": {
+          if (agent.latestRun) {
+            await client.cancelRun(agent.id, agent.latestRun.id);
+          }
+          break;
+        }
+        case "archive": {
+          await client.archiveAgent(agent.id);
+          break;
+        }
+        case "unarchive": {
+          await client.unarchiveAgent(agent.id);
+          break;
+        }
+        case "delete": {
+          await client.deleteAgent(agent.id);
+          clearDetail();
+          agentsHandle?.refresh();
+          return;
+        }
+        case "back":
+          break;
+      }
+      agentsHandle?.refresh();
+      const fresh = await client.getAgent(agent.id);
+      selectAgent(fresh);
+    } catch (err) {
+      console.error("[action menu]", item, err);
+    } finally {
+      restoreGlassesView();
+    }
   };
 
   const handleListeningChange = (active: boolean): void => {
@@ -392,6 +488,10 @@ export function mountApp({ root, keyStore, glasses, onSignOut }: AppDeps): () =>
           voiceHandle.stop({ commit: false });
           return;
         }
+        if (actionMenuActive) {
+          closeActionMenu();
+          return;
+        }
         if (detailHandle) {
           clearDetail();
           const all = agentsHandle?.getAgents() ?? [];
@@ -401,8 +501,11 @@ export function mountApp({ root, keyStore, glasses, onSignOut }: AppDeps): () =>
       }
 
       if (gesture.type === "double-click") {
-        if (detailHandle && voiceHandle) {
-          void voiceHandle.startForIntent({ kind: "followup" });
+        if (actionMenuActive) {
+          return;
+        }
+        if (detailHandle) {
+          showActionMenu();
         }
         return;
       }
@@ -413,6 +516,17 @@ export function mountApp({ root, keyStore, glasses, onSignOut }: AppDeps): () =>
 
       if (voiceHandle?.isListening()) {
         voiceHandle.stop({ commit: true });
+        return;
+      }
+
+      if (actionMenuActive) {
+        const items = getActionMenuItems();
+        const picked = items[gesture.index];
+        if (picked === "back") {
+          closeActionMenu();
+        } else if (picked) {
+          void runActionMenuItem(picked);
+        }
         return;
       }
 
