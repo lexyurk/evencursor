@@ -15,5 +15,5 @@
     "isolatedModules": true,
     "noEmit": true
   },
-  "include": ["src/hub", "src/shared", "vite.config.ts"]
+  "include": ["src", "vite.config.ts"]
 }
