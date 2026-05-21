@@ -1,6 +1,4 @@
 import {
-  CreateStartUpPageContainer,
-  RebuildPageContainer,
   TextContainerUpgrade,
   waitForEvenAppBridge,
   type EvenAppBridge
@@ -52,14 +50,12 @@ export class GlassesAdapter {
 
     const page = buildAgentListPage(rows, footer);
     if (!this.startupInitialized) {
-      await this.bridge.createStartUpPageContainer(
-        new CreateStartUpPageContainer(page)
-      );
+      await this.bridge.createStartUpPageContainer(page);
       this.startupInitialized = true;
       return;
     }
 
-    await this.bridge.rebuildPageContainer(new RebuildPageContainer(page));
+    await this.bridge.rebuildPageContainer(page);
   }
 
   async showAgentDetail(args: AgentDetailHudArgs): Promise<void> {
@@ -69,9 +65,7 @@ export class GlassesAdapter {
     }
 
     this.detailStatusLine = args.statusLine;
-    await this.bridge.rebuildPageContainer(
-      new RebuildPageContainer(buildAgentDetailPage(args))
-    );
+    await this.bridge.rebuildPageContainer(buildAgentDetailPage(args));
   }
 
   async updateDetailDelta(lastDelta: string): Promise<void> {
