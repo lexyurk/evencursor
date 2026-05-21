@@ -295,6 +295,10 @@
     {
       "at": "2026-05-21T05:54:51.067Z",
       "message": "reverify-app-shell: synthetic failure handoff written to /workspace/.orchestrate/evencursor-rework/handoffs/reverify-app-shell-failure.md"
+    },
+    {
+      "at": "2026-05-21T05:55:56.514Z",
+      "message": "reverify-app-shell: respawned by local-cli (was error)"
     }
   ]
 }
