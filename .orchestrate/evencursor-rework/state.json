@@ -164,11 +164,11 @@
       "finishedAt": "2026-05-21T05:51:56.828Z",
       "lastUpdate": "2026-05-21T05:51:57.930Z",
       "note": null,
+      "attempts": 1,
       "slackTs": null,
       "prNumber": null,
       "failureMode": null,
-      "verification": "live-ui-verified",
-      "attempts": 1
+      "verification": "live-ui-verified"
     },
     {
       "name": "reverify-app-shell",
@@ -179,21 +179,44 @@
         "app-shell",
         "fix-keystore-fallback"
       ],
-      "agentId": "bc-97f0a0e4-dc4d-4fd4-8316-04ceb24f8fe1",
-      "runId": "run-aa1ae772-84ed-483f-a1fe-9cf0b7c97f7a",
+      "agentId": null,
+      "runId": null,
       "parentAgentId": "bc-952c06ce-c152-4ea0-997b-94d5cd4cd7aa",
-      "status": "error",
-      "resultStatus": "cancelled",
-      "handoffPath": "handoffs/reverify-app-shell.md",
-      "startedAt": "2026-05-21T05:52:00.867Z",
-      "finishedAt": "2026-05-21T05:54:50.138Z",
-      "lastUpdate": "2026-05-21T05:54:50.138Z",
+      "status": "pending",
+      "resultStatus": null,
+      "handoffPath": null,
+      "startedAt": null,
+      "finishedAt": null,
+      "lastUpdate": "2026-05-21T05:55:55.506Z",
+      "note": "respawned by local-cli (was error; attempts=1)",
+      "attempts": 1,
+      "slackTs": null,
+      "prNumber": null,
+      "failureMode": null,
+      "verification": null
+    },
+    {
+      "name": "ship-app-shell",
+      "type": "worker",
+      "branch": "orch/evencursor-rework/ship-app-shell",
+      "startingRef": "orch/evencursor-rework/fix-keystore-fallback",
+      "dependsOn": [
+        "fix-keystore-fallback"
+      ],
+      "agentId": null,
+      "runId": null,
+      "parentAgentId": null,
+      "status": "pending",
+      "resultStatus": null,
+      "handoffPath": null,
+      "startedAt": null,
+      "finishedAt": null,
+      "lastUpdate": null,
       "note": null,
       "slackTs": null,
       "prNumber": null,
-      "failureMode": "unknown",
-      "verification": null,
-      "attempts": 1
+      "failureMode": null,
+      "verification": null
     }
   ],
   "attention": [

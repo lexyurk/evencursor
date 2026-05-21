@@ -211,17 +211,44 @@
       "verify": "## Setup\n- `npm install` against the updated branch.\n\n## Automated\n- `npm run typecheck`, `npm run test`, `npm run build`.\n- Run the new `src/storage/__tests__/storage.test.ts` directly.\n\n## Manual\n- `npm run dev`, open the URL in Chrome, paste a Cursor API key, confirm the AgentsList renders (network tab shows `/v1/agents` 200).\n- In DevTools console: `localStorage.getItem('cursor.apiKey')` returns the pasted key (proves fallback wrote through)."
     },
     {
+      "name": "ship-app-shell",
+      "type": "worker",
+      "model": "composer-2.5",
+      "dependsOn": ["fix-keystore-fallback"],
+      "startingRef": "orch/evencursor-rework/fix-keystore-fallback",
+      "openPR": false,
+      "scopedGoal": "Consolidate the fix into the shippable PR. Concretely:\n\n1. Your starting branch is `orch/evencursor-rework/fix-keystore-fallback` — the fully-fixed code from `fix-keystore-fallback` (live-verified by that worker with screenshots at `/opt/cursor/artifacts/keystore_fix_*.png`). Do NOT modify code; this is a shipping task.\n2. Update the existing draft PR #2 (https://github.com/lexyurk/evencursor/pull/2) — change its head to this branch (`orch/evencursor-rework/ship-app-shell`, which after your push is what you'll be on) by closing PR #2 and opening a fresh draft PR against `main` with the SAME title (`Rework evencursor onto Cursor Cloud Agents + Deepgram + Even Hub HUD`) and an updated body that:\n   - Links docs/spec.md.\n   - Lists every merged child branch: scaffold → cursor-client → voice-client → glasses-client → app-shell → fix-keystore-fallback.\n   - Includes the §9 acceptance checklist with the CURRENT post-fix state checked.\n   - References the two artifact screenshots inline: `<img src=\"/opt/cursor/artifacts/keystore_fix_signin.png\" />` and `<img src=\"/opt/cursor/artifacts/keystore_fix_agentslist.png\" />` so the orchestrate tooling uploads them.\n   - Notes that the prior `verify-app-shell` verdict (`verifier-failed`) was resolved by `fix-keystore-fallback` (`live-ui-verified`).\n3. Re-run `npm install && npm run typecheck && npm run test && npm run build` on a fresh checkout of THIS branch to confirm nothing regressed during the consolidation. Report exit codes in `## Measurements`.\n4. Use ManagePullRequest with `action: close` for #2 and `action: create_pr` for the new PR. If the close action is not available, just update PR #2's title/body via `update_pr` and rely on GitHub's automatic branch swap (set branch_name to your branch).\n\nMake no source edits in this task.\n\nMeasurement note: report `final-typecheck-exit`, `final-test-count`, `final-build-exit`, and `pr-url` (the URL of the active PR after consolidation) in `## Measurements`.",
+      "pathsAllowed": [
+        "package.json",
+        "package-lock.json"
+      ],
+      "pathsForbidden": [
+        "src/**",
+        "docs/**",
+        ".orchestrate/**",
+        ".verifier/**"
+      ],
+      "acceptance": [
+        "Active draft PR against `main` carries the fix-keystore-fallback commits.",
+        "PR title is exactly `Rework evencursor onto Cursor Cloud Agents + Deepgram + Even Hub HUD`.",
+        "PR body lists every merged child branch including fix-keystore-fallback and embeds both artifact screenshots.",
+        "`npm run typecheck`, `npm run test`, `npm run build` all exit 0 on this branch.",
+        "`final-test-count` ≥ 35."
+      ]
+    },
+    {
       "name": "reverify-app-shell",
       "type": "verifier",
       "verifies": "app-shell",
       "model": "claude-opus-4-7",
-      "dependsOn": ["fix-keystore-fallback"],
-      "startingRef": "orch/evencursor-rework/app-shell",
-      "scopedGoal": "Re-verify the app-shell branch after the keystore-fallback fix. Run the full `npm install && npm run typecheck && npm run test && npm run build` chain, then exercise the live dev server: SignIn → AgentsList rendering, agent click → AgentDetail + SSE stream visible in DevTools Network, and the parseTranscript → command-bus harness (you may reuse the previous harness pattern; do NOT commit `.verifier/` artifacts unless the previous attempt's `.verifier/` directory has been wiped — re-create them ephemerally if needed). Use the real `CURSOR_API_KEY` from the env if available. File a fresh verdict (`live-ui-verified` if the live flow finally works end-to-end; `unit-test-verified` if you can only confirm via automated tests; `verifier-failed` only if there is a NEW blocking regression).",
+      "dependsOn": ["ship-app-shell"],
+      "startingRef": "orch/evencursor-rework/ship-app-shell",
+      "scopedGoal": "Final live verification of the shippable branch. Run `npm install && npm run typecheck && npm run test && npm run build`; capture exit codes. Then exercise the dev server end-to-end: SignIn → AgentsList renders → click an agent → AgentDetail mounts and a `text/event-stream` connection appears in DevTools Network for `/v1/agents/.../runs/.../stream` → close the stream. If `CURSOR_API_KEY` is set in your VM, use it for the real `/v1/me` validation and live data; otherwise reuse the harness pattern from the previous verifier (mock fetch). File a verdict per the orchestrate verifier template. Expected verdict: `live-ui-verified` if the live flow works; `unit-test-verified` if you can only confirm via automated tests and the harness; `verifier-failed` only for a NEW regression.",
       "acceptance": [
-        "Verification section contains current exit codes for typecheck, test, build.",
-        "Verification section confirms whether SignIn → AgentsList unlocks live in `npm run dev`.",
-        "Verification section confirms whether selecting an agent attaches the SSE stream in DevTools."
+        "Verification section contains current exit codes for typecheck/test/build.",
+        "Verification section confirms SignIn → AgentsList renders live (or explains why blocked).",
+        "Verification section confirms AgentDetail attaches SSE on agent click (or explains why blocked).",
+        "Active PR URL is referenced and its head matches `orch/evencursor-rework/ship-app-shell`."
       ]
     }
   ]
