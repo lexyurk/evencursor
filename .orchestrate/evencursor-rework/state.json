@@ -63,12 +63,12 @@
       "handoffPath": "handoffs/voice-client.md",
       "startedAt": "2026-05-21T05:20:24.840Z",
       "finishedAt": "2026-05-21T05:21:53.207Z",
-      "lastUpdate": "2026-05-21T05:21:53.208Z",
+      "lastUpdate": "2026-05-21T05:21:54.402Z",
       "note": null,
       "slackTs": null,
       "prNumber": null,
       "failureMode": null,
-      "verification": null,
+      "verification": "unit-test-verified",
       "attempts": 1
     },
     {
@@ -82,12 +82,12 @@
       "agentId": "bc-4168b0be-6ac0-4834-8d5b-47e25ff4583e",
       "runId": "run-0825be1d-c0ac-45a0-a7d8-133f3d212ab5",
       "parentAgentId": "bc-952c06ce-c152-4ea0-997b-94d5cd4cd7aa",
-      "status": "running",
-      "resultStatus": null,
-      "handoffPath": null,
+      "status": "handed-off",
+      "resultStatus": "finished",
+      "handoffPath": "handoffs/glasses-client.md",
       "startedAt": "2026-05-21T05:20:27.887Z",
-      "finishedAt": null,
-      "lastUpdate": "2026-05-21T05:20:30.457Z",
+      "finishedAt": "2026-05-21T05:22:09.779Z",
+      "lastUpdate": "2026-05-21T05:22:09.779Z",
       "note": null,
       "slackTs": null,
       "prNumber": null,
@@ -176,6 +176,10 @@
     {
       "at": "2026-05-21T05:20:27.887Z",
       "message": "glasses-client: model \"composer-2.5\" not in MODEL_CATALOG (spawning anyway). Run `bun cli.ts models` to see known slugs."
+    },
+    {
+      "at": "2026-05-21T05:21:54.402Z",
+      "message": "voice-client: verification self-reported (unit-test-verified)"
     }
   ]
 }
