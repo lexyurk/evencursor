@@ -235,13 +235,13 @@
       "handoffPath": "handoffs/extras-features-and-simulator.md",
       "startedAt": "2026-05-21T07:06:43.991Z",
       "finishedAt": "2026-05-21T07:14:21.322Z",
-      "lastUpdate": "2026-05-21T07:14:21.323Z",
+      "lastUpdate": "2026-05-21T07:14:24.498Z",
       "note": null,
+      "attempts": 1,
       "slackTs": null,
       "prNumber": 2,
       "failureMode": null,
-      "verification": null,
-      "attempts": 1
+      "verification": "live-ui-verified"
     }
   ],
   "attention": [
@@ -340,6 +340,10 @@
     {
       "at": "2026-05-21T07:06:43.987Z",
       "message": "extras-features-and-simulator: model \"composer-2.5\" not in MODEL_CATALOG (spawning anyway). Run `bun cli.ts models` to see known slugs."
+    },
+    {
+      "at": "2026-05-21T07:14:24.498Z",
+      "message": "extras-features-and-simulator: verification self-reported (live-ui-verified)"
     }
   ]
 }
