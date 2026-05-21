@@ -113,13 +113,13 @@
       "handoffPath": "handoffs/app-shell.md",
       "startedAt": "2026-05-21T05:22:30.861Z",
       "finishedAt": "2026-05-21T05:26:15.184Z",
-      "lastUpdate": "2026-05-21T05:42:39.026Z",
+      "lastUpdate": "2026-05-21T06:10:37.060Z",
       "note": null,
       "attempts": 1,
       "slackTs": null,
       "prNumber": 2,
       "failureMode": null,
-      "verification": "verifier-failed"
+      "verification": "live-ui-verified"
     },
     {
       "name": "verify-app-shell",
@@ -213,11 +213,11 @@
       "finishedAt": "2026-05-21T05:58:26.193Z",
       "lastUpdate": "2026-05-21T05:58:27.358Z",
       "note": null,
+      "attempts": 1,
       "slackTs": null,
       "prNumber": 2,
       "failureMode": null,
-      "verification": "live-ui-verified",
-      "attempts": 1
+      "verification": "live-ui-verified"
     }
   ],
   "attention": [
@@ -308,6 +308,10 @@
     {
       "at": "2026-05-21T05:58:27.359Z",
       "message": "ship-app-shell: verification self-reported (live-ui-verified)"
+    },
+    {
+      "at": "2026-05-21T06:10:37.061Z",
+      "message": "app-shell: verification recorded (live-ui-verified) by verifier reverify-app-shell"
     }
   ]
 }
