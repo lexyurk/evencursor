@@ -173,7 +173,7 @@ async function main() {
       await route.fallback();
     });
 
-    await page.goto("http://127.0.0.1:5173/#/simulator", {
+    await page.goto("http://127.0.0.1:5188/#/simulator", {
       waitUntil: "domcontentloaded"
     });
     await page.waitForSelector(".sim-g2-canvas", { timeout: 15_000 });
