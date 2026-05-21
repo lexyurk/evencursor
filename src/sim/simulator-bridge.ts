@@ -186,14 +186,61 @@ export class SimulatorBridge {
       return;
     }
     const info = describeG2Page(this.currentPage);
-    if (info.kind !== "list") {
+    if (info.kind === "list") {
+      this.dispatchListEvent({
+        currentSelectItemIndex: this.selectedIndex,
+        currentSelectItemName: info.rows[this.selectedIndex] ?? "",
+        eventType: OsEventTypeList.CLICK_EVENT
+      });
       return;
     }
-    this.dispatchListEvent({
-      currentSelectItemIndex: this.selectedIndex,
-      currentSelectItemName: info.rows[this.selectedIndex] ?? "",
+
+    const captureTarget = this.findEventCaptureTextContainer();
+    if (!captureTarget) {
+      return;
+    }
+    this.dispatchTextEvent({
+      containerID: captureTarget.containerID,
+      containerName: captureTarget.containerName,
       eventType: OsEventTypeList.CLICK_EVENT
     });
+  }
+
+  private findEventCaptureTextContainer(): {
+    containerID?: number;
+    containerName?: string;
+  } | null {
+    if (!this.currentPage) {
+      return null;
+    }
+    const texts = (this.currentPage as {
+      textObject?: Array<{
+        containerID?: number;
+        containerName?: string;
+        isEventCapture?: number;
+      }>;
+    }).textObject;
+    if (!Array.isArray(texts)) {
+      return null;
+    }
+    return texts.find((t) => t.isEventCapture === 1) ?? null;
+  }
+
+  dispatchTextEvent(payload: {
+    containerID?: number;
+    containerName?: string;
+    eventType: OsEventTypeList;
+  }): void {
+    const event = {
+      textEvent: {
+        containerID: payload.containerID,
+        containerName: payload.containerName,
+        eventType: payload.eventType
+      }
+    };
+    for (const listener of this.hubListeners) {
+      listener(event);
+    }
   }
 
   doubleClickSelect(): void {

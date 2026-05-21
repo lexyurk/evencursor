@@ -178,6 +178,44 @@ export function mountApp({ root, keyStore, glasses, onSignOut }: AppDeps): () =>
     });
   };
 
+  const createAgentDirect = async (rest: string): Promise<void> => {
+    if (!client) {
+      return;
+    }
+    const { prompt, repositoryUrl } = parseNewAgentRest(rest);
+    if (!prompt) {
+      return;
+    }
+    try {
+      const { agent } = await client.createAgent({
+        prompt,
+        repositoryUrl
+      });
+      repoFilter = null;
+      agentsHandle?.refresh();
+      selectAgent(agent);
+    } catch (err) {
+      console.error("[new-agent direct]", err);
+    }
+  };
+
+  const sendFollowUpDirect = async (rest: string): Promise<void> => {
+    if (!client || !selectedAgent) {
+      return;
+    }
+    const prompt = rest.trim();
+    if (!prompt) {
+      return;
+    }
+    try {
+      await client.createRun(selectedAgent.id, { prompt });
+      const fresh = await client.getAgent(selectedAgent.id);
+      selectAgent(fresh);
+    } catch (err) {
+      console.error("[followup direct]", err);
+    }
+  };
+
   const selectAgent = (agent: Agent): void => {
     if (!client || !detailSlot) {
       return;
@@ -226,6 +264,10 @@ export function mountApp({ root, keyStore, glasses, onSignOut }: AppDeps): () =>
         agentsHandle?.refresh();
         break;
       case "new": {
+        if (command.direct) {
+          void createAgentDirect(command.rest);
+          break;
+        }
         const { prompt, repositoryUrl } = parseNewAgentRest(command.rest);
         openNewAgentDialog({
           prompt: prompt || undefined,
@@ -235,6 +277,10 @@ export function mountApp({ root, keyStore, glasses, onSignOut }: AppDeps): () =>
       }
       case "followup": {
         if (!command.rest.trim()) {
+          break;
+        }
+        if (command.direct) {
+          void sendFollowUpDirect(command.rest);
           break;
         }
         detailHandle?.applyVoiceFollowUp(command.rest);
@@ -343,7 +389,7 @@ export function mountApp({ root, keyStore, glasses, onSignOut }: AppDeps): () =>
     selectionTeardown = glasses.onGesture((gesture) => {
       if (gesture.type === "back") {
         if (voiceHandle?.isListening()) {
-          voiceHandle.stop();
+          voiceHandle.stop({ commit: false });
           return;
         }
         if (detailHandle) {
@@ -354,12 +400,33 @@ export function mountApp({ root, keyStore, glasses, onSignOut }: AppDeps): () =>
         return;
       }
 
+      if (gesture.type === "double-click") {
+        if (detailHandle && voiceHandle) {
+          void voiceHandle.startForIntent({ kind: "followup" });
+        }
+        return;
+      }
+
       if (gesture.type !== "click") {
         return;
       }
 
+      if (voiceHandle?.isListening()) {
+        voiceHandle.stop({ commit: true });
+        return;
+      }
+
+      if (detailHandle && voiceHandle) {
+        void voiceHandle.startForIntent({ kind: "followup" });
+        return;
+      }
+
       if (gesture.index === NEW_AGENT_HUD_INDEX) {
-        openNewAgentDialog();
+        if (voiceHandle) {
+          void voiceHandle.startForIntent({ kind: "newAgent" });
+        } else {
+          openNewAgentDialog();
+        }
         return;
       }
 

@@ -5,9 +5,9 @@ import { BrowserMic } from "../voice/mic.js";
 import type { CommandToken } from "../voice/types.js";
 
 export type VoiceCommand =
-  | { verb: "new"; rest: string }
+  | { verb: "new"; rest: string; direct?: boolean }
   | { verb: "cancel" }
-  | { verb: "followup"; rest: string }
+  | { verb: "followup"; rest: string; direct?: boolean }
   | { verb: "refresh" }
   | { verb: "select"; index: number }
   | { verb: "open"; repo: string }
@@ -18,6 +18,12 @@ export type VoiceCommand =
   | { verb: "delete" };
 
 export type VoiceBarMode = "command" | "dictate";
+
+export type VoiceIntent =
+  | { kind: "command" }
+  | { kind: "dictate" }
+  | { kind: "newAgent" }
+  | { kind: "followup" };
 
 export type VoiceBarDeps = {
   root: HTMLElement;
@@ -83,8 +89,10 @@ function appendToFocusedField(text: string): boolean {
 
 export type VoiceBarHandle = {
   destroy: () => void;
-  stop: () => void;
+  stop: (opts?: { commit?: boolean }) => void;
   isListening: () => boolean;
+  startForIntent: (intent: VoiceIntent) => Promise<void>;
+  getIntent: () => VoiceIntent;
 };
 
 export function mountVoiceBar(deps: VoiceBarDeps): VoiceBarHandle {
@@ -118,6 +126,8 @@ export function mountVoiceBar(deps: VoiceBarDeps): VoiceBarHandle {
 
   let listening = false;
   let mode: VoiceBarMode = "command";
+  let intent: VoiceIntent = { kind: "command" };
+  let promptBuffer = "";
   let deepgram: DeepgramLive | undefined;
   let browserMic: BrowserMic | undefined;
   let stopGlassesMic: (() => void) | undefined;
@@ -156,7 +166,10 @@ export function mountVoiceBar(deps: VoiceBarDeps): VoiceBarHandle {
     onListeningChange?.(active);
   };
 
-  const stopSession = async (): Promise<void> => {
+  const stopSession = async (commit = true): Promise<void> => {
+    const wasListening = listening;
+    const finalPrompt = promptBuffer.trim();
+    const finalIntent = intent;
     unsubTranscript?.();
     unsubTranscript = undefined;
     await browserMic?.stop();
@@ -166,6 +179,18 @@ export function mountVoiceBar(deps: VoiceBarDeps): VoiceBarHandle {
     await deepgram?.close();
     deepgram = undefined;
     setListeningUi(false);
+    promptBuffer = "";
+    if (
+      wasListening &&
+      commit &&
+      finalPrompt.length > 0 &&
+      (finalIntent.kind === "newAgent" || finalIntent.kind === "followup")
+    ) {
+      const verb = finalIntent.kind === "newAgent" ? "new" : "followup";
+      onCommand({ verb, rest: finalPrompt, direct: true });
+    }
+    // Reset intent to default command mode for next manual session
+    intent = { kind: "command" };
     setModeUi();
   };
 
@@ -191,15 +216,30 @@ export function mountVoiceBar(deps: VoiceBarDeps): VoiceBarHandle {
     };
 
     unsubTranscript = deepgram.on("transcript", (chunk) => {
-      if (chunk.transcript) {
-        setTranscript(chunk.transcript);
+      const liveTranscript =
+        intent.kind === "newAgent" || intent.kind === "followup"
+          ? (promptBuffer + (promptBuffer ? " " : "") + chunk.transcript).trim()
+          : chunk.transcript;
+      if (liveTranscript) {
+        setTranscript(liveTranscript);
       }
-      onTranscript?.(chunk.transcript, chunk.speechFinal === true);
+      onTranscript?.(liveTranscript, chunk.speechFinal === true);
       if (!chunk.speechFinal) {
         return;
       }
 
-      if (mode === "dictate") {
+      if (intent.kind === "newAgent" || intent.kind === "followup") {
+        const piece = chunk.transcript.trim();
+        if (piece.length === 0) {
+          return;
+        }
+        promptBuffer = promptBuffer
+          ? `${promptBuffer} ${piece}`
+          : piece;
+        return;
+      }
+
+      if (intent.kind === "dictate" || mode === "dictate") {
         const appended = appendToFocusedField(chunk.transcript);
         if (!appended) {
           setTranscript(chunk.transcript);
@@ -224,7 +264,20 @@ export function mountVoiceBar(deps: VoiceBarDeps): VoiceBarHandle {
     }
 
     setListeningUi(true);
-    setTranscript(mode === "command" ? "Listening…" : "Dictating…");
+    setTranscript(introTranscriptText());
+  };
+
+  const introTranscriptText = (): string => {
+    switch (intent.kind) {
+      case "newAgent":
+        return "Speak the prompt for the new agent…";
+      case "followup":
+        return "Speak the follow-up prompt…";
+      case "dictate":
+        return "Dictating…";
+      default:
+        return "Listening…";
+    }
   };
 
   const onMicClick = (): void => {
@@ -232,13 +285,15 @@ export function mountVoiceBar(deps: VoiceBarDeps): VoiceBarHandle {
       return;
     }
     if (listening) {
-      void stopSession();
+      void stopSession(true);
       return;
     }
+    intent = mode === "dictate" ? { kind: "dictate" } : { kind: "command" };
+    promptBuffer = "";
     void startSession().catch((err: unknown) => {
       const message = err instanceof Error ? err.message : "Could not start microphone";
       setTranscript(message);
-      void stopSession();
+      void stopSession(false);
     });
   };
 
@@ -259,14 +314,30 @@ export function mountVoiceBar(deps: VoiceBarDeps): VoiceBarHandle {
     destroy: () => {
       destroyed = true;
       micBtn?.removeEventListener("click", onMicClick);
-      void stopSession();
+      void stopSession(false);
       root.replaceChildren();
     },
-    stop: () => {
+    stop: (opts) => {
       if (listening) {
-        void stopSession();
+        void stopSession(opts?.commit !== false);
       }
     },
-    isListening: () => listening
+    isListening: () => listening,
+    startForIntent: async (next: VoiceIntent) => {
+      if (listening) {
+        await stopSession(false);
+      }
+      intent = next;
+      promptBuffer = "";
+      try {
+        await startSession();
+      } catch (err: unknown) {
+        const message =
+          err instanceof Error ? err.message : "Could not start microphone";
+        setTranscript(message);
+        await stopSession(false);
+      }
+    },
+    getIntent: () => intent
   };
 }

@@ -84,7 +84,8 @@ function buildFooterTextContainer(
   containerName: string,
   content: string,
   yPosition: number,
-  height: number
+  height: number,
+  options: { isEventCapture?: 0 | 1 } = {}
 ): TextContainerProperty {
   return new TextContainerProperty({
     containerID,
@@ -96,7 +97,7 @@ function buildFooterTextContainer(
     borderWidth: 0,
     borderRadius: 0,
     paddingLength: 2,
-    isEventCapture: 0,
+    isEventCapture: options.isEventCapture ?? 0,
     content: clampTextContent(content)
   });
 }
@@ -162,7 +163,8 @@ export function buildVoicePage(args: VoicePageArgs): RebuildPageContainer {
         VOICE_FOOTER_CONTAINER_NAME,
         args.footer,
         240,
-        CANVAS_HEIGHT - 240
+        CANVAS_HEIGHT - 240,
+        { isEventCapture: 1 }
       )
     ]
   });

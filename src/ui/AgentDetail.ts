@@ -95,7 +95,7 @@ export function mountAgentDetail(deps: AgentDetailDeps): AgentDetailHandle {
       title: agent.name || "Agent",
       statusLine,
       lastDelta: assistantLog.split("\n").pop() ?? "",
-      footer: "Swipe up: back · Press: follow up"
+      footer: "Click: follow-up · Back: list"
     });
   };
 

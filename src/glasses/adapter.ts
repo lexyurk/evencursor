@@ -191,27 +191,39 @@ function parseGesture(event: EvenHubEvent): GlassesGesture | null {
   }
 
   const list = event.listEvent;
-  if (!list) {
-    return null;
-  }
-
-  const index = list.currentSelectItemIndex ?? -1;
-  const name = list.currentSelectItemName ?? "";
-
-  switch (list.eventType) {
-    case OsEventTypeList.CLICK_EVENT:
-      if (index < 0) return null;
-      return { type: "click", index, name };
-    case OsEventTypeList.DOUBLE_CLICK_EVENT:
-      return { type: "double-click", index, name };
-    case OsEventTypeList.SCROLL_TOP_EVENT:
-      return { type: "scroll-up", index, name };
-    case OsEventTypeList.SCROLL_BOTTOM_EVENT:
-      return { type: "scroll-down", index, name };
-    default:
-      if (list.eventType === undefined && index >= 0) {
+  if (list) {
+    const index = list.currentSelectItemIndex ?? -1;
+    const name = list.currentSelectItemName ?? "";
+    switch (list.eventType) {
+      case OsEventTypeList.CLICK_EVENT:
+        if (index < 0) return null;
         return { type: "click", index, name };
-      }
-      return null;
+      case OsEventTypeList.DOUBLE_CLICK_EVENT:
+        return { type: "double-click", index, name };
+      case OsEventTypeList.SCROLL_TOP_EVENT:
+        return { type: "scroll-up", index, name };
+      case OsEventTypeList.SCROLL_BOTTOM_EVENT:
+        return { type: "scroll-down", index, name };
+      default:
+        if (list.eventType === undefined && index >= 0) {
+          return { type: "click", index, name };
+        }
+        return null;
+    }
   }
+
+  const text = event.textEvent;
+  if (text) {
+    const name = text.containerName ?? "";
+    switch (text.eventType) {
+      case OsEventTypeList.CLICK_EVENT:
+        return { type: "click", index: -1, name };
+      case OsEventTypeList.DOUBLE_CLICK_EVENT:
+        return { type: "double-click", index: -1, name };
+      default:
+        return null;
+    }
+  }
+
+  return null;
 }
