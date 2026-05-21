@@ -260,6 +260,18 @@
     {
       "at": "2026-05-21T05:51:57.931Z",
       "message": "fix-keystore-fallback: verification self-reported (live-ui-verified)"
+    },
+    {
+      "at": "2026-05-21T05:54:51.064Z",
+      "message": "git-sync failed (reverify-app-shell running -> error): Command failed: git -C /workspace/.orchestrate/evencursor-rework push\nTo https://github.com/lexyurk/evencursor\n ! [remote rejected] cursor/orchestrate-evencursor-rework-d7aa -> cursor/orchestrate-even…"
+    },
+    {
+      "at": "2026-05-21T05:54:51.065Z",
+      "message": "reverify-app-shell: run ended with status=cancelled; see /workspace/.orchestrate/evencursor-rework/handoffs/reverify-app-shell.md"
+    },
+    {
+      "at": "2026-05-21T05:54:51.067Z",
+      "message": "reverify-app-shell: synthetic failure handoff written to /workspace/.orchestrate/evencursor-rework/handoffs/reverify-app-shell-failure.md"
     }
   ]
 }
