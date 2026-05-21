@@ -174,7 +174,7 @@
       "name": "reverify-app-shell",
       "type": "verifier",
       "branch": "orch/evencursor-rework/reverify-app-shell",
-      "startingRef": "orch/evencursor-rework/app-shell",
+      "startingRef": "orch/evencursor-rework/ship-app-shell",
       "dependsOn": [
         "app-shell",
         "ship-app-shell"
@@ -182,14 +182,14 @@
       "agentId": null,
       "runId": null,
       "parentAgentId": "bc-952c06ce-c152-4ea0-997b-94d5cd4cd7aa",
-      "status": "pending",
+      "status": "running",
       "resultStatus": null,
       "handoffPath": null,
-      "startedAt": null,
+      "startedAt": "2026-05-21T05:58:31.100Z",
       "finishedAt": null,
-      "lastUpdate": "2026-05-21T05:55:55.506Z",
+      "lastUpdate": "2026-05-21T05:58:31.100Z",
       "note": "respawned by local-cli (was error; attempts=1)",
-      "attempts": 1,
+      "attempts": 2,
       "slackTs": null,
       "prNumber": null,
       "failureMode": null,
@@ -211,12 +211,12 @@
       "handoffPath": "handoffs/ship-app-shell.md",
       "startedAt": "2026-05-21T05:56:08.145Z",
       "finishedAt": "2026-05-21T05:58:26.193Z",
-      "lastUpdate": "2026-05-21T05:58:26.194Z",
+      "lastUpdate": "2026-05-21T05:58:27.358Z",
       "note": null,
       "slackTs": null,
       "prNumber": 2,
       "failureMode": null,
-      "verification": null,
+      "verification": "live-ui-verified",
       "attempts": 1
     }
   ],
@@ -304,6 +304,10 @@
     {
       "at": "2026-05-21T05:56:08.139Z",
       "message": "ship-app-shell: model \"composer-2.5\" not in MODEL_CATALOG (spawning anyway). Run `bun cli.ts models` to see known slugs."
+    },
+    {
+      "at": "2026-05-21T05:58:27.359Z",
+      "message": "ship-app-shell: verification self-reported (live-ui-verified)"
     }
   ]
 }
