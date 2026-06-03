@@ -73,6 +73,7 @@ export function mountApp({ root, keyStore, glasses, onSignOut }: AppDeps): () =>
   let glassesMicAvailable = false;
   let voiceActive = false;
   let actionMenuActive = false;
+  let actionMenuItems: ActionMenuItem[] = [];
 
   root.innerHTML = `
     <div class="app-shell">
@@ -117,7 +118,7 @@ export function mountApp({ root, keyStore, glasses, onSignOut }: AppDeps): () =>
 
   const restoreGlassesView = (): void => {
     if (actionMenuActive) {
-      showActionMenu();
+      showActionMenu(actionMenuItems.length > 0 ? actionMenuItems : getActionMenuItems());
       return;
     }
     if (detailHandle) {
@@ -159,12 +160,12 @@ export function mountApp({ root, keyStore, glasses, onSignOut }: AppDeps): () =>
     return items;
   };
 
-  const showActionMenu = (): void => {
+  const showActionMenu = (items: ActionMenuItem[] = getActionMenuItems()): void => {
     if (!selectedAgent) {
       return;
     }
     actionMenuActive = true;
-    const items = getActionMenuItems();
+    actionMenuItems = items;
     const rows = items.map((item) => ACTION_MENU_LABELS[item]);
     void glasses.showAgentList(
       rows,
@@ -174,6 +175,7 @@ export function mountApp({ root, keyStore, glasses, onSignOut }: AppDeps): () =>
 
   const closeActionMenu = (): void => {
     actionMenuActive = false;
+    actionMenuItems = [];
     restoreGlassesView();
   };
 
@@ -201,6 +203,10 @@ export function mountApp({ root, keyStore, glasses, onSignOut }: AppDeps): () =>
           break;
         }
         case "delete": {
+          const label = agent.name || agent.id;
+          if (!globalThis.confirm(`Delete agent “${label}”?`)) {
+            return;
+          }
           await client.deleteAgent(agent.id);
           clearDetail();
           agentsHandle?.refresh();
@@ -501,6 +507,9 @@ export function mountApp({ root, keyStore, glasses, onSignOut }: AppDeps): () =>
       }
 
       if (gesture.type === "double-click") {
+        if (voiceActive || voiceHandle?.isListening()) {
+          return;
+        }
         if (actionMenuActive) {
           return;
         }
@@ -520,8 +529,7 @@ export function mountApp({ root, keyStore, glasses, onSignOut }: AppDeps): () =>
       }
 
       if (actionMenuActive) {
-        const items = getActionMenuItems();
-        const picked = items[gesture.index];
+        const picked = actionMenuItems[gesture.index];
         if (picked === "back") {
           closeActionMenu();
         } else if (picked) {
