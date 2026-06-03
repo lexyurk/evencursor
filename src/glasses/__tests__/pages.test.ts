@@ -3,11 +3,16 @@ import {
   buildAgentDetailPage,
   buildAgentListPage,
   buildDetailStatusContent,
+  buildVoicePage,
+  buildVoiceTranscriptContent,
   DETAIL_FOOTER_CONTAINER_ID,
   DETAIL_STATUS_CONTAINER_ID,
   DETAIL_TITLE_CONTAINER_ID,
   LIST_CONTAINER_ID,
-  LIST_FOOTER_CONTAINER_ID
+  LIST_FOOTER_CONTAINER_ID,
+  VOICE_FOOTER_CONTAINER_ID,
+  VOICE_TITLE_CONTAINER_ID,
+  VOICE_TRANSCRIPT_CONTAINER_ID
 } from "../pages.js";
 
 const CANVAS_WIDTH = 576;
@@ -113,5 +118,29 @@ describe("buildDetailStatusContent", () => {
   it("truncates combined status and delta to 1000 chars", () => {
     const content = buildDetailStatusContent("STATUS", "x".repeat(2000));
     expect(content.length).toBeLessThanOrEqual(1000);
+  });
+});
+
+describe("buildVoicePage", () => {
+  it("builds a voice page with title, transcript, footer", () => {
+    const page = buildVoicePage({
+      title: "New agent",
+      transcript: "fix the auth regression",
+      footer: "Speak · back to cancel"
+    });
+
+    expect(page.containerTotalNum).toBe(3);
+    expect(page.textObject?.length).toBe(3);
+
+    const [title, transcript, footer] = page.textObject ?? [];
+    expect(title?.containerID).toBe(VOICE_TITLE_CONTAINER_ID);
+    expect(transcript?.containerID).toBe(VOICE_TRANSCRIPT_CONTAINER_ID);
+    expect(footer?.containerID).toBe(VOICE_FOOTER_CONTAINER_ID);
+    expect(transcript?.content).toBe("fix the auth regression");
+  });
+
+  it("shows a placeholder when the transcript is empty", () => {
+    const content = buildVoiceTranscriptContent("");
+    expect(content).toBe("Speak now…");
   });
 });

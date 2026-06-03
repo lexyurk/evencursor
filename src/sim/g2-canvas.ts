@@ -2,7 +2,11 @@ import type {
   CreateStartUpPageContainer,
   RebuildPageContainer
 } from "@evenrealities/even_hub_sdk";
-import { CANVAS_HEIGHT, CANVAS_WIDTH } from "../glasses/pages.js";
+import {
+  CANVAS_HEIGHT,
+  CANVAS_WIDTH,
+  VOICE_TITLE_CONTAINER_NAME
+} from "../glasses/pages.js";
 
 const PALETTE = [
   "#000000",
@@ -51,6 +55,7 @@ type TextLike = {
   width?: number;
   height?: number;
   content?: string;
+  containerName?: string;
 };
 
 function readListObjects(
@@ -179,7 +184,7 @@ export function renderG2Canvas(
 
 export function describeG2Page(
   page: CreateStartUpPageContainer | RebuildPageContainer
-): { kind: "list" | "detail"; rows: string[]; footer: string } {
+): { kind: "list" | "detail" | "voice"; rows: string[]; footer: string } {
   const lists = readListObjects(page);
   const texts = readTextObjects(page);
 
@@ -192,8 +197,10 @@ export function describeG2Page(
   const title = texts[0]?.content ?? "";
   const status = texts[1]?.content ?? "";
   const footer = texts[2]?.content ?? "";
+
+  const isVoice = texts[0]?.containerName === VOICE_TITLE_CONTAINER_NAME;
   return {
-    kind: "detail",
+    kind: isVoice ? "voice" : "detail",
     rows: [title, status].filter(Boolean),
     footer
   };

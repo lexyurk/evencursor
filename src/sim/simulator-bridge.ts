@@ -2,6 +2,7 @@ import {
   CreateStartUpPageContainer,
   DeviceInfo,
   DeviceModel,
+  OsEventTypeList,
   RebuildPageContainer,
   StartUpPageCreateResult,
   TextContainerUpgrade,
@@ -26,7 +27,7 @@ export type SimulatorBridgeEvents = {
 export type ListEventPayload = {
   currentSelectItemIndex: number;
   currentSelectItemName: string;
-  evenHubEvent?: string;
+  eventType?: OsEventTypeList;
 };
 
 export class SimulatorBridge {
@@ -137,10 +138,21 @@ export class SimulatorBridge {
       listEvent: {
         currentSelectItemIndex: payload.currentSelectItemIndex,
         currentSelectItemName: payload.currentSelectItemName,
-        evenHubEvent: payload.evenHubEvent ?? "SELECT"
+        eventType: payload.eventType ?? OsEventTypeList.CLICK_EVENT
       }
     };
 
+    for (const listener of this.hubListeners) {
+      listener(event);
+    }
+  }
+
+  dispatchBack(): void {
+    const event = {
+      sysEvent: {
+        eventType: OsEventTypeList.FOREGROUND_EXIT_EVENT
+      }
+    };
     for (const listener of this.hubListeners) {
       listener(event);
     }
@@ -162,7 +174,10 @@ export class SimulatorBridge {
     this.dispatchListEvent({
       currentSelectItemIndex: this.selectedIndex,
       currentSelectItemName: info.rows[this.selectedIndex] ?? "",
-      evenHubEvent: "SCROLL"
+      eventType:
+        delta < 0
+          ? OsEventTypeList.SCROLL_TOP_EVENT
+          : OsEventTypeList.SCROLL_BOTTOM_EVENT
     });
   }
 
@@ -171,13 +186,73 @@ export class SimulatorBridge {
       return;
     }
     const info = describeG2Page(this.currentPage);
-    if (info.kind !== "list") {
+    if (info.kind === "list") {
+      this.dispatchListEvent({
+        currentSelectItemIndex: this.selectedIndex,
+        currentSelectItemName: info.rows[this.selectedIndex] ?? "",
+        eventType: OsEventTypeList.CLICK_EVENT
+      });
       return;
     }
+
+    const captureTarget = this.findEventCaptureTextContainer();
+    if (!captureTarget) {
+      return;
+    }
+    this.dispatchTextEvent({
+      containerID: captureTarget.containerID,
+      containerName: captureTarget.containerName,
+      eventType: OsEventTypeList.CLICK_EVENT
+    });
+  }
+
+  private findEventCaptureTextContainer(): {
+    containerID?: number;
+    containerName?: string;
+  } | null {
+    if (!this.currentPage) {
+      return null;
+    }
+    const texts = (this.currentPage as {
+      textObject?: Array<{
+        containerID?: number;
+        containerName?: string;
+        isEventCapture?: number;
+      }>;
+    }).textObject;
+    if (!Array.isArray(texts)) {
+      return null;
+    }
+    return texts.find((t) => t.isEventCapture === 1) ?? null;
+  }
+
+  dispatchTextEvent(payload: {
+    containerID?: number;
+    containerName?: string;
+    eventType: OsEventTypeList;
+  }): void {
+    const event = {
+      textEvent: {
+        containerID: payload.containerID,
+        containerName: payload.containerName,
+        eventType: payload.eventType
+      }
+    };
+    for (const listener of this.hubListeners) {
+      listener(event);
+    }
+  }
+
+  doubleClickSelect(): void {
+    if (!this.currentPage) {
+      return;
+    }
+    const info = describeG2Page(this.currentPage);
+    const name = info.kind === "list" ? info.rows[this.selectedIndex] ?? "" : "";
     this.dispatchListEvent({
       currentSelectItemIndex: this.selectedIndex,
-      currentSelectItemName: info.rows[this.selectedIndex] ?? "",
-      evenHubEvent: "SELECT"
+      currentSelectItemName: name,
+      eventType: OsEventTypeList.DOUBLE_CLICK_EVENT
     });
   }
 

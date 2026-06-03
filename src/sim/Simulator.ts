@@ -12,8 +12,7 @@ import "../ui/styles.css";
 import { describeG2Page } from "./g2-canvas.js";
 import {
   installSimBridgeGlobal,
-  SimulatorBridge,
-  type ListEventPayload
+  SimulatorBridge
 } from "./simulator-bridge.js";
 
 export function mountSimulator(root: HTMLElement): () => void {
@@ -30,13 +29,13 @@ export function mountSimulator(root: HTMLElement): () => void {
         </section>
         <section class="sim-panel sim-touchpad-panel">
           <h2>Touchpad</h2>
+          <p class="sim-touchpad-hint muted">G2 gestures</p>
           <div class="sim-touchpad">
-            <button type="button" data-action="up">Up</button>
-            <button type="button" data-action="down">Down</button>
-            <button type="button" data-action="press">Press</button>
-            <button type="button" data-action="back">Back</button>
-            <button type="button" data-action="swipe-up">Swipe Up</button>
-            <button type="button" data-action="swipe-down">Swipe Down</button>
+            <button type="button" data-action="up" title="Touchpad scroll up">Scroll ↑</button>
+            <button type="button" data-action="down" title="Touchpad scroll down">Scroll ↓</button>
+            <button type="button" data-action="press" title="Single tap">Click</button>
+            <button type="button" data-action="double" title="Double tap">Double Click</button>
+            <button type="button" data-action="back" title="Back / foreground exit">Back</button>
           </div>
         </section>
         <section class="sim-panel sim-status-panel">
@@ -88,10 +87,6 @@ export function mountSimulator(root: HTMLElement): () => void {
   });
   writeStatus();
 
-  const dispatch = (payload: ListEventPayload): void => {
-    bridge.dispatchListEvent(payload);
-  };
-
   root.querySelectorAll<HTMLButtonElement>("[data-action]").forEach((button) => {
     button.addEventListener("click", () => {
       const action = button.dataset.action;
@@ -107,26 +102,11 @@ export function mountSimulator(root: HTMLElement): () => void {
         case "press":
           bridge.pressSelect();
           break;
+        case "double":
+          bridge.doubleClickSelect();
+          break;
         case "back":
-          dispatch({
-            currentSelectItemIndex: -1,
-            currentSelectItemName: "",
-            evenHubEvent: "BACK"
-          });
-          break;
-        case "swipe-up":
-          dispatch({
-            currentSelectItemIndex: bridge.selectedIndex,
-            currentSelectItemName: "",
-            evenHubEvent: "SWIPE_UP"
-          });
-          break;
-        case "swipe-down":
-          dispatch({
-            currentSelectItemIndex: bridge.selectedIndex,
-            currentSelectItemName: "",
-            evenHubEvent: "SWIPE_DOWN"
-          });
+          bridge.dispatchBack();
           break;
         default:
           break;

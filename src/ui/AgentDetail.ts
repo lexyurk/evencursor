@@ -20,6 +20,7 @@ export type AgentDetailDeps = {
 export type AgentDetailHandle = {
   destroy: () => void;
   applyVoiceFollowUp: (prompt: string) => void;
+  repaintHud: () => void;
 };
 
 function escapeHtml(value: string): string {
@@ -85,22 +86,49 @@ export function mountAgentDetail(deps: AgentDetailDeps): AgentDetailHandle {
   let dictation: DictationSession | undefined;
   let destroyed = false;
 
+  const HUD_ACTIVITY_LINES = 5;
+  const HUD_ACTIVITY_LINE_WIDTH = 64;
+
+  const truncateLine = (line: string): string =>
+    line.length > HUD_ACTIVITY_LINE_WIDTH
+      ? `${line.slice(0, HUD_ACTIVITY_LINE_WIDTH - 1)}…`
+      : line;
+
+  const buildActivityTail = (): string[] => {
+    const lines = assistantLog
+      .split("\n")
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0);
+    return lines.slice(-HUD_ACTIVITY_LINES).map(truncateLine);
+  };
+
+  const repoLabel = (): string | undefined => {
+    const url = agent.repositoryUrl;
+    if (!url) {
+      return undefined;
+    }
+    const stripped = url.replace(/^https?:\/\/[^/]+\//i, "").replace(/\.git$/, "");
+    return stripped || undefined;
+  };
+
   const renderHud = (): void => {
     const status = latestRun?.status ?? agent.status;
     const statusLine = latestRun
-      ? `Run ${latestRun.id.slice(0, 8)}… · ${status}`
+      ? `${status} · run ${latestRun.id.slice(0, 8)}…`
       : status;
+    const activity = buildActivityTail();
     void glasses.showAgentDetail({
       title: agent.name || "Agent",
       statusLine,
-      lastDelta: assistantLog.split("\n").pop() ?? "",
-      footer: "Swipe up: back · Press: follow up"
+      lastDelta: activity[activity.length - 1] ?? "",
+      footer: "Click: follow-up · Double: actions · Back: list",
+      repoLabel: repoLabel(),
+      activity
     });
   };
 
   const syncHudDelta = (): void => {
-    const lastLine = assistantLog.split("\n").filter(Boolean).pop() ?? "";
-    void glasses.updateDetailDelta(lastLine);
+    void glasses.updateDetailActivity(buildActivityTail());
   };
 
   const getFollowUpTextarea = (): HTMLTextAreaElement | null =>
@@ -453,6 +481,7 @@ export function mountAgentDetail(deps: AgentDetailDeps): AgentDetailHandle {
       stopStream();
       root.replaceChildren();
     },
-    applyVoiceFollowUp
+    applyVoiceFollowUp,
+    repaintHud: renderHud
   };
 }

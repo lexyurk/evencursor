@@ -16,6 +16,21 @@ Even Hub WebView (Vite SPA)
 
 Sign-in is paste-once: a Cursor user API key from [cursor.com/dashboard/integrations](https://cursor.com/dashboard/integrations) and a Deepgram API key from the [Deepgram console](https://console.deepgram.com/). Keys persist through the Even App bridge when available, otherwise `window.localStorage`.
 
+## Glasses-only workflow
+
+The HUD has three pages and one menu. Every action is reachable from the G2 touchpad — no phone interaction required once the keys are saved.
+
+| Page         | Click                      | Double-click     | Scroll up/down  | Back              |
+|--------------|----------------------------|------------------|-----------------|-------------------|
+| Agent list   | open agent / start new     | (no-op)          | move selection  | (no-op)           |
+| Voice page   | commit prompt              | (no-op)          | (no-op)         | cancel prompt     |
+| Agent detail | start follow-up voice      | open action menu | (no-op)         | back to list      |
+| Action menu  | run selected action        | (no-op)          | move selection  | back to detail    |
+
+The agent list always shows a virtual `+ New agent` row at index 0; click it to start a new-agent voice session. While listening, the HUD switches to the voice page and live-streams the Deepgram transcript. Click to send, back to cancel.
+
+Action menu items are context-aware: `Cancel run` only appears while a run is active, `Archive`/`Unarchive` toggle based on the agent's state, and `Delete agent` is always there with a confirm on the phone.
+
 ## Requirements
 
 - Node.js 20+

@@ -13,7 +13,11 @@ import {
 } from "./AgentDetail.js";
 import { mountAgentsList, type AgentsListHandle } from "./AgentsList.js";
 import { mountNewAgentDialog } from "./NewAgentDialog.js";
-import { mountVoiceBar, type VoiceCommand } from "./VoiceBar.js";
+import {
+  mountVoiceBar,
+  type VoiceBarHandle,
+  type VoiceCommand
+} from "./VoiceBar.js";
 
 export type AppDeps = {
   root: HTMLElement;
@@ -21,6 +25,9 @@ export type AppDeps = {
   glasses: GlassesAdapter;
   onSignOut: () => void;
 };
+
+const NEW_AGENT_HUD_ROW = "+ New agent · dictate a prompt";
+const NEW_AGENT_HUD_INDEX = 0;
 
 function formatHudRow(agent: Agent): string {
   const status = agent.latestRun?.status ?? agent.status;
@@ -58,12 +65,14 @@ export function mountApp({ root, keyStore, glasses, onSignOut }: AppDeps): () =>
   let client: CursorClient;
   let agentsHandle: AgentsListHandle | undefined;
   let detailHandle: AgentDetailHandle | undefined;
-  let voiceTeardown: (() => void) | undefined;
+  let voiceHandle: VoiceBarHandle | undefined;
   let selectionTeardown: (() => void) | undefined;
   let dialogTeardown: (() => void) | undefined;
   let selectedAgent: Agent | null = null;
   let repoFilter: string | null = null;
   let glassesMicAvailable = false;
+  let voiceActive = false;
+  let actionMenuActive = false;
 
   root.innerHTML = `
     <div class="app-shell">
@@ -92,15 +101,143 @@ export function mountApp({ root, keyStore, glasses, onSignOut }: AppDeps): () =>
   ): Promise<() => void> => glasses.openMic(sendPcm);
 
   const syncGlassesList = (agents: Agent[]): void => {
+    if (voiceActive || actionMenuActive || detailHandle) {
+      return;
+    }
     const filter = repoFilter ?? "";
     const visible = filter
       ? agents.filter((agent) => repoMatches(agent, filter))
       : agents;
-    const rows = visible.map(formatHudRow);
+    const rows = [NEW_AGENT_HUD_ROW, ...visible.map(formatHudRow)];
     const footer = repoFilter
-      ? `${visible.length} in ${repoFilter}`
-      : `${visible.length} agents · tap to select`;
+      ? `${visible.length} in ${repoFilter} · click row · back to exit`
+      : `${visible.length} agents · click row · back to exit`;
     void glasses.showAgentList(rows, footer);
+  };
+
+  const restoreGlassesView = (): void => {
+    if (actionMenuActive) {
+      showActionMenu();
+      return;
+    }
+    if (detailHandle) {
+      detailHandle.repaintHud();
+      return;
+    }
+    const all = agentsHandle?.getAgents() ?? [];
+    syncGlassesList(all);
+  };
+
+  const ACTION_MENU_LABELS = {
+    cancel: "Cancel run",
+    archive: "Archive",
+    unarchive: "Unarchive",
+    delete: "Delete agent",
+    back: "Back"
+  } as const;
+
+  type ActionMenuItem = keyof typeof ACTION_MENU_LABELS;
+
+  const getActionMenuItems = (): ActionMenuItem[] => {
+    if (!selectedAgent) {
+      return ["back"];
+    }
+    const items: ActionMenuItem[] = [];
+    const run = selectedAgent.latestRun;
+    const isActive =
+      run !== undefined &&
+      run.status !== "FINISHED" &&
+      run.status !== "ERRORED" &&
+      run.status !== "CANCELLED" &&
+      run.status !== "EXPIRED";
+    if (isActive) {
+      items.push("cancel");
+    }
+    items.push(selectedAgent.archived ? "unarchive" : "archive");
+    items.push("delete");
+    items.push("back");
+    return items;
+  };
+
+  const showActionMenu = (): void => {
+    if (!selectedAgent) {
+      return;
+    }
+    actionMenuActive = true;
+    const items = getActionMenuItems();
+    const rows = items.map((item) => ACTION_MENU_LABELS[item]);
+    void glasses.showAgentList(
+      rows,
+      `${selectedAgent.name || "Agent"} · click action · back cancels`
+    );
+  };
+
+  const closeActionMenu = (): void => {
+    actionMenuActive = false;
+    restoreGlassesView();
+  };
+
+  const runActionMenuItem = async (item: ActionMenuItem): Promise<void> => {
+    if (!client || !selectedAgent) {
+      closeActionMenu();
+      return;
+    }
+    const agent = selectedAgent;
+    actionMenuActive = false;
+    try {
+      switch (item) {
+        case "cancel": {
+          if (agent.latestRun) {
+            await client.cancelRun(agent.id, agent.latestRun.id);
+          }
+          break;
+        }
+        case "archive": {
+          await client.archiveAgent(agent.id);
+          break;
+        }
+        case "unarchive": {
+          await client.unarchiveAgent(agent.id);
+          break;
+        }
+        case "delete": {
+          await client.deleteAgent(agent.id);
+          clearDetail();
+          agentsHandle?.refresh();
+          return;
+        }
+        case "back":
+          break;
+      }
+      agentsHandle?.refresh();
+      const fresh = await client.getAgent(agent.id);
+      selectAgent(fresh);
+    } catch (err) {
+      console.error("[action menu]", item, err);
+    } finally {
+      restoreGlassesView();
+    }
+  };
+
+  const handleListeningChange = (active: boolean): void => {
+    voiceActive = active;
+    if (active) {
+      const title = detailHandle ? "Follow-up" : "New agent";
+      void glasses.showVoicePage({
+        title,
+        transcript: "",
+        footer: "Speak · back to cancel"
+      });
+    } else {
+      restoreGlassesView();
+    }
+  };
+
+  const handleTranscriptChange = (text: string): void => {
+    if (!voiceActive) {
+      return;
+    }
+    void glasses.updateVoiceTranscript(text);
   };
 
   const clearDetail = (): void => {
@@ -135,6 +272,44 @@ export function mountApp({ root, keyStore, glasses, onSignOut }: AppDeps): () =>
         dialogTeardown = undefined;
       }
     });
+  };
+
+  const createAgentDirect = async (rest: string): Promise<void> => {
+    if (!client) {
+      return;
+    }
+    const { prompt, repositoryUrl } = parseNewAgentRest(rest);
+    if (!prompt) {
+      return;
+    }
+    try {
+      const { agent } = await client.createAgent({
+        prompt,
+        repositoryUrl
+      });
+      repoFilter = null;
+      agentsHandle?.refresh();
+      selectAgent(agent);
+    } catch (err) {
+      console.error("[new-agent direct]", err);
+    }
+  };
+
+  const sendFollowUpDirect = async (rest: string): Promise<void> => {
+    if (!client || !selectedAgent) {
+      return;
+    }
+    const prompt = rest.trim();
+    if (!prompt) {
+      return;
+    }
+    try {
+      await client.createRun(selectedAgent.id, { prompt });
+      const fresh = await client.getAgent(selectedAgent.id);
+      selectAgent(fresh);
+    } catch (err) {
+      console.error("[followup direct]", err);
+    }
   };
 
   const selectAgent = (agent: Agent): void => {
@@ -185,6 +360,10 @@ export function mountApp({ root, keyStore, glasses, onSignOut }: AppDeps): () =>
         agentsHandle?.refresh();
         break;
       case "new": {
+        if (command.direct) {
+          void createAgentDirect(command.rest);
+          break;
+        }
         const { prompt, repositoryUrl } = parseNewAgentRest(command.rest);
         openNewAgentDialog({
           prompt: prompt || undefined,
@@ -194,6 +373,10 @@ export function mountApp({ root, keyStore, glasses, onSignOut }: AppDeps): () =>
       }
       case "followup": {
         if (!command.rest.trim()) {
+          break;
+        }
+        if (command.direct) {
+          void sendFollowUpDirect(command.rest);
           break;
         }
         detailHandle?.applyVoiceFollowUp(command.rest);
@@ -277,11 +460,13 @@ export function mountApp({ root, keyStore, glasses, onSignOut }: AppDeps): () =>
     const { available } = await glasses.init();
     glassesMicAvailable = available;
 
-    voiceTeardown = mountVoiceBar({
+    voiceHandle = mountVoiceBar({
       root: voiceSlot,
       onCommand: handleCommand,
       glassesMicAvailable,
-      openGlassesMic: (onPcm) => glasses.openMic(onPcm)
+      openGlassesMic: (onPcm) => glasses.openMic(onPcm),
+      onListeningChange: handleListeningChange,
+      onTranscript: handleTranscriptChange
     });
 
     agentsHandle = mountAgentsList({
@@ -297,13 +482,74 @@ export function mountApp({ root, keyStore, glasses, onSignOut }: AppDeps): () =>
       }
     });
 
-    selectionTeardown = glasses.onSelection((index) => {
-      const agents = agentsHandle?.getAgents() ?? [];
+    selectionTeardown = glasses.onGesture((gesture) => {
+      if (gesture.type === "back") {
+        if (voiceHandle?.isListening()) {
+          voiceHandle.stop({ commit: false });
+          return;
+        }
+        if (actionMenuActive) {
+          closeActionMenu();
+          return;
+        }
+        if (detailHandle) {
+          clearDetail();
+          const all = agentsHandle?.getAgents() ?? [];
+          syncGlassesList(all);
+        }
+        return;
+      }
+
+      if (gesture.type === "double-click") {
+        if (actionMenuActive) {
+          return;
+        }
+        if (detailHandle) {
+          showActionMenu();
+        }
+        return;
+      }
+
+      if (gesture.type !== "click") {
+        return;
+      }
+
+      if (voiceHandle?.isListening()) {
+        voiceHandle.stop({ commit: true });
+        return;
+      }
+
+      if (actionMenuActive) {
+        const items = getActionMenuItems();
+        const picked = items[gesture.index];
+        if (picked === "back") {
+          closeActionMenu();
+        } else if (picked) {
+          void runActionMenuItem(picked);
+        }
+        return;
+      }
+
+      if (detailHandle && voiceHandle) {
+        void voiceHandle.startForIntent({ kind: "followup" });
+        return;
+      }
+
+      if (gesture.index === NEW_AGENT_HUD_INDEX) {
+        if (voiceHandle) {
+          void voiceHandle.startForIntent({ kind: "newAgent" });
+        } else {
+          openNewAgentDialog();
+        }
+        return;
+      }
+
+      const all = agentsHandle?.getAgents() ?? [];
       const filter = repoFilter ?? "";
       const visible = filter
-        ? agents.filter((agent) => repoMatches(agent, filter))
-        : agents;
-      const agent = visible[index];
+        ? all.filter((agent) => repoMatches(agent, filter))
+        : all;
+      const agent = visible[gesture.index - 1];
       if (agent) {
         selectAgent(agent);
       }
@@ -314,7 +560,7 @@ export function mountApp({ root, keyStore, glasses, onSignOut }: AppDeps): () =>
 
   return () => {
     selectionTeardown?.();
-    voiceTeardown?.();
+    voiceHandle?.destroy();
     dialogTeardown?.();
     agentsHandle?.destroy();
     detailHandle?.destroy();

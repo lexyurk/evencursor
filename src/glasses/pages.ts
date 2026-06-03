@@ -11,6 +11,14 @@ export type AgentDetailPageArgs = {
   statusLine: string;
   lastDelta: string;
   footer: string;
+  repoLabel?: string;
+  activity?: readonly string[];
+};
+
+export type VoicePageArgs = {
+  title: string;
+  transcript: string;
+  footer: string;
 };
 
 export const LIST_CONTAINER_ID = 1;
@@ -24,6 +32,13 @@ export const DETAIL_STATUS_CONTAINER_ID = 2;
 export const DETAIL_STATUS_CONTAINER_NAME = "detail-status";
 export const DETAIL_FOOTER_CONTAINER_ID = 3;
 export const DETAIL_FOOTER_CONTAINER_NAME = "detail-footer";
+
+export const VOICE_TITLE_CONTAINER_ID = 1;
+export const VOICE_TITLE_CONTAINER_NAME = "voice-title";
+export const VOICE_TRANSCRIPT_CONTAINER_ID = 2;
+export const VOICE_TRANSCRIPT_CONTAINER_NAME = "voice-transcript";
+export const VOICE_FOOTER_CONTAINER_ID = 3;
+export const VOICE_FOOTER_CONTAINER_NAME = "voice-footer";
 
 export const CANVAS_WIDTH = 576;
 export const CANVAS_HEIGHT = 288;
@@ -71,7 +86,8 @@ function buildFooterTextContainer(
   containerName: string,
   content: string,
   yPosition: number,
-  height: number
+  height: number,
+  options: { isEventCapture?: 0 | 1 } = {}
 ): TextContainerProperty {
   return new TextContainerProperty({
     containerID,
@@ -83,20 +99,36 @@ function buildFooterTextContainer(
     borderWidth: 0,
     borderRadius: 0,
     paddingLength: 2,
-    isEventCapture: 0,
+    isEventCapture: options.isEventCapture ?? 0,
     content: clampTextContent(content)
   });
 }
 
 export function buildDetailStatusContent(
   statusLine: string,
-  lastDelta: string
+  lastDelta: string,
+  opts: { repoLabel?: string; activity?: readonly string[] } = {}
 ): string {
-  const delta = lastDelta.trim();
-  if (delta.length === 0) {
-    return clampTextContent(statusLine);
+  const lines: string[] = [];
+  if (opts.repoLabel && opts.repoLabel.trim().length > 0) {
+    lines.push(`${statusLine}  ·  ${opts.repoLabel.trim()}`);
+  } else {
+    lines.push(statusLine);
   }
-  return clampTextContent(`${statusLine}\n${delta}`);
+
+  const activity = opts.activity ?? [];
+  if (activity.length > 0) {
+    for (const line of activity) {
+      const trimmed = line.trim();
+      if (trimmed.length > 0) {
+        lines.push(trimmed);
+      }
+    }
+  } else if (lastDelta.trim().length > 0) {
+    lines.push(lastDelta.trim());
+  }
+
+  return clampTextContent(lines.join("\n"));
 }
 
 export function buildAgentListPage(
@@ -118,6 +150,44 @@ export function buildAgentListPage(
   });
 }
 
+export function buildVoiceTranscriptContent(transcript: string): string {
+  const trimmed = transcript.trim();
+  if (trimmed.length === 0) {
+    return clampTextContent("Speak now…");
+  }
+  return clampTextContent(trimmed);
+}
+
+export function buildVoicePage(args: VoicePageArgs): RebuildPageContainer {
+  return new RebuildPageContainer({
+    containerTotalNum: 3,
+    textObject: [
+      buildFooterTextContainer(
+        VOICE_TITLE_CONTAINER_ID,
+        VOICE_TITLE_CONTAINER_NAME,
+        args.title,
+        8,
+        40
+      ),
+      buildFooterTextContainer(
+        VOICE_TRANSCRIPT_CONTAINER_ID,
+        VOICE_TRANSCRIPT_CONTAINER_NAME,
+        buildVoiceTranscriptContent(args.transcript),
+        56,
+        176
+      ),
+      buildFooterTextContainer(
+        VOICE_FOOTER_CONTAINER_ID,
+        VOICE_FOOTER_CONTAINER_NAME,
+        args.footer,
+        240,
+        CANVAS_HEIGHT - 240,
+        { isEventCapture: 1 }
+      )
+    ]
+  });
+}
+
 export function buildAgentDetailPage(
   args: AgentDetailPageArgs
 ): RebuildPageContainer {
@@ -134,7 +204,10 @@ export function buildAgentDetailPage(
       buildFooterTextContainer(
         DETAIL_STATUS_CONTAINER_ID,
         DETAIL_STATUS_CONTAINER_NAME,
-        buildDetailStatusContent(args.statusLine, args.lastDelta),
+        buildDetailStatusContent(args.statusLine, args.lastDelta, {
+          repoLabel: args.repoLabel,
+          activity: args.activity
+        }),
         56,
         176
       ),
@@ -143,7 +216,8 @@ export function buildAgentDetailPage(
         DETAIL_FOOTER_CONTAINER_NAME,
         args.footer,
         240,
-        CANVAS_HEIGHT - 240
+        CANVAS_HEIGHT - 240,
+        { isEventCapture: 1 }
       )
     ]
   });
